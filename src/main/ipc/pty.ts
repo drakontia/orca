@@ -5,6 +5,11 @@ let ptyCounter = 0
 const ptyProcesses = new Map<string, pty.IPty>()
 
 export function registerPtyHandlers(mainWindow: BrowserWindow): void {
+  // Kill orphaned PTY processes when the renderer reloads
+  mainWindow.webContents.on('did-finish-load', () => {
+    killAllPty()
+  })
+
   ipcMain.handle('pty:spawn', (_event, args: { cols: number; rows: number; cwd?: string }) => {
     const id = String(++ptyCounter)
     const shellPath = process.env.SHELL || '/bin/zsh'
@@ -56,7 +61,11 @@ export function registerPtyHandlers(mainWindow: BrowserWindow): void {
   ipcMain.handle('pty:kill', (_event, args: { id: string }) => {
     const proc = ptyProcesses.get(args.id)
     if (proc) {
-      proc.kill()
+      try {
+        proc.kill()
+      } catch {
+        // Process may already be dead
+      }
       ptyProcesses.delete(args.id)
     }
   })

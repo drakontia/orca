@@ -53,14 +53,25 @@ export const createWorktreeSlice: StateCreator<AppState, [], [], WorktreeSlice> 
   removeWorktree: async (worktreeId, force) => {
     try {
       await window.api.worktrees.remove({ worktreeId, force })
+      // Kill PTYs for tabs belonging to this worktree
+      const tabs = get().tabsByWorktree[worktreeId] ?? []
+      const tabIds = new Set(tabs.map((t) => t.id))
+      for (const tab of tabs) {
+        if (tab.ptyId) window.api.pty.kill(tab.ptyId)
+      }
+
       set((s) => {
         const next = { ...s.worktreesByRepo }
         for (const repoId of Object.keys(next)) {
           next[repoId] = next[repoId].filter((w) => w.id !== worktreeId)
         }
+        const nextTabs = { ...s.tabsByWorktree }
+        delete nextTabs[worktreeId]
         return {
           worktreesByRepo: next,
-          activeWorktreeId: s.activeWorktreeId === worktreeId ? null : s.activeWorktreeId
+          tabsByWorktree: nextTabs,
+          activeWorktreeId: s.activeWorktreeId === worktreeId ? null : s.activeWorktreeId,
+          activeTabId: s.activeTabId && tabIds.has(s.activeTabId) ? null : s.activeTabId
         }
       })
     } catch (err) {

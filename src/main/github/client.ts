@@ -1,4 +1,4 @@
-import { execSync } from 'child_process'
+import { execFileSync } from 'child_process'
 import type { PRInfo, IssueInfo, CheckStatus } from '../../shared/types'
 
 /**
@@ -9,8 +9,9 @@ export function getPRForBranch(repoPath: string, branch: string): PRInfo | null 
   try {
     // Strip refs/heads/ prefix if present
     const branchName = branch.replace(/^refs\/heads\//, '')
-    const raw = execSync(
-      `gh pr view "${branchName}" --json number,title,state,url,statusCheckRollup,updatedAt`,
+    const raw = execFileSync(
+      'gh',
+      ['pr', 'view', branchName, '--json', 'number,title,state,url,statusCheckRollup,updatedAt'],
       {
         cwd: repoPath,
         encoding: 'utf-8',
@@ -36,11 +37,15 @@ export function getPRForBranch(repoPath: string, branch: string): PRInfo | null 
  */
 export function getIssue(repoPath: string, issueNumber: number): IssueInfo | null {
   try {
-    const raw = execSync(`gh issue view ${issueNumber} --json number,title,state,url,labels`, {
-      cwd: repoPath,
-      encoding: 'utf-8',
-      stdio: ['pipe', 'pipe', 'pipe']
-    })
+    const raw = execFileSync(
+      'gh',
+      ['issue', 'view', String(issueNumber), '--json', 'number,title,state,url,labels'],
+      {
+        cwd: repoPath,
+        encoding: 'utf-8',
+        stdio: ['pipe', 'pipe', 'pipe']
+      }
+    )
     const data = JSON.parse(raw)
     return {
       number: data.number,
@@ -59,11 +64,15 @@ export function getIssue(repoPath: string, issueNumber: number): IssueInfo | nul
  */
 export function listIssues(repoPath: string, limit = 20): IssueInfo[] {
   try {
-    const raw = execSync(`gh issue list --json number,title,state,url,labels --limit ${limit}`, {
-      cwd: repoPath,
-      encoding: 'utf-8',
-      stdio: ['pipe', 'pipe', 'pipe']
-    })
+    const raw = execFileSync(
+      'gh',
+      ['issue', 'list', '--json', 'number,title,state,url,labels', '--limit', String(limit)],
+      {
+        cwd: repoPath,
+        encoding: 'utf-8',
+        stdio: ['pipe', 'pipe', 'pipe']
+      }
+    )
     const data = JSON.parse(raw) as Array<{
       number: number
       title: string

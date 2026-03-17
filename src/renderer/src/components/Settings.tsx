@@ -26,19 +26,26 @@ function Settings(): React.JSX.Element {
 
   // Check which repos have orca.yaml hooks
   useEffect(() => {
+    let stale = false
     const checkHooks = async () => {
-      const map: Record<string, boolean> = {}
-      for (const repo of repos) {
-        try {
-          const result = await window.api.hooks.check({ repoId: repo.id })
-          map[repo.id] = result.hasHooks
-        } catch {
-          map[repo.id] = false
-        }
+      const results = await Promise.all(
+        repos.map(async (repo) => {
+          try {
+            const result = await window.api.hooks.check({ repoId: repo.id })
+            return [repo.id, result.hasHooks] as const
+          } catch {
+            return [repo.id, false] as const
+          }
+        })
+      )
+      if (!stale) {
+        setRepoHooksMap(Object.fromEntries(results))
       }
-      setRepoHooksMap(map)
     }
     if (repos.length > 0) checkHooks()
+    return () => {
+      stale = true
+    }
   }, [repos])
 
   // Apply theme immediately

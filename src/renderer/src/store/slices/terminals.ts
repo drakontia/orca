@@ -13,27 +13,31 @@ export interface TerminalSlice {
   updateTabPtyId: (tabId: string, ptyId: string) => void
 }
 
-export const createTerminalSlice: StateCreator<AppState, [], [], TerminalSlice> = (set, get) => ({
+export const createTerminalSlice: StateCreator<AppState, [], [], TerminalSlice> = (set) => ({
   tabsByWorktree: {},
   activeTabId: null,
 
   createTab: (worktreeId) => {
-    const existing = get().tabsByWorktree[worktreeId] ?? []
-    const tab: TerminalTab = {
-      id: globalThis.crypto.randomUUID(),
-      ptyId: null,
-      worktreeId,
-      title: `Terminal ${existing.length + 1}`,
-      sortOrder: existing.length,
-      createdAt: Date.now()
-    }
-    set((s) => ({
-      tabsByWorktree: {
-        ...s.tabsByWorktree,
-        [worktreeId]: [...(s.tabsByWorktree[worktreeId] ?? []), tab]
-      },
-      activeTabId: tab.id
-    }))
+    const id = globalThis.crypto.randomUUID()
+    let tab!: TerminalTab
+    set((s) => {
+      const existing = s.tabsByWorktree[worktreeId] ?? []
+      tab = {
+        id,
+        ptyId: null,
+        worktreeId,
+        title: `Terminal ${existing.length + 1}`,
+        sortOrder: existing.length,
+        createdAt: Date.now()
+      }
+      return {
+        tabsByWorktree: {
+          ...s.tabsByWorktree,
+          [worktreeId]: [...existing, tab]
+        },
+        activeTabId: tab.id
+      }
+    })
     return tab
   },
 

@@ -99,7 +99,8 @@ const WorktreeList = React.memo(function WorktreeList() {
         const repo = repoMap.get(w.repoId)
         const branch = branchName(w.branch)
         const cacheKey = repo ? `${repo.path}::${branch}` : ''
-        const pr = cacheKey ? prCache[cacheKey] : undefined
+        const prEntry = cacheKey ? prCache[cacheKey] : undefined
+        const pr = prEntry !== undefined ? prEntry.data : undefined
         const label = pr ? pr.state.charAt(0).toUpperCase() + pr.state.slice(1) : 'No PR'
         if (!buckets.has(label)) buckets.set(label, [])
         buckets.get(label)!.push(w)

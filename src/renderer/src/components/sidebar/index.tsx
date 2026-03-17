@@ -19,12 +19,13 @@ export default function Sidebar(): React.JSX.Element {
   const repos = useAppStore((s) => s.repos)
   const fetchAllWorktrees = useAppStore((s) => s.fetchAllWorktrees)
 
-  // Fetch worktrees when repos change
+  // Fetch worktrees when repos are added/removed
+  const repoCount = repos.length
   useEffect(() => {
-    if (repos.length > 0) {
+    if (repoCount > 0) {
       fetchAllWorktrees()
     }
-  }, [repos, fetchAllWorktrees])
+  }, [repoCount, fetchAllWorktrees])
 
   // ─── Resize logic ────────────────────────────────────
   const isResizing = useRef(false)

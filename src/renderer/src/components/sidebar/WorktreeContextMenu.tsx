@@ -29,7 +29,6 @@ const WorktreeContextMenu = React.memo(function WorktreeContextMenu({ worktree, 
   const updateWorktreeMeta = useAppStore((s) => s.updateWorktreeMeta)
   const removeWorktree = useAppStore((s) => s.removeWorktree)
   const openModal = useAppStore((s) => s.openModal)
-  const tabsByWorktree = useAppStore((s) => s.tabsByWorktree)
   const closeTab = useAppStore((s) => s.closeTab)
 
   const handleOpenInFinder = useCallback(() => {
@@ -53,14 +52,14 @@ const WorktreeContextMenu = React.memo(function WorktreeContextMenu({ worktree, 
   }, [worktree.id, worktree.comment, openModal])
 
   const handleCloseTerminals = useCallback(() => {
-    const tabs = tabsByWorktree[worktree.id] ?? []
+    const tabs = useAppStore.getState().tabsByWorktree[worktree.id] ?? []
     for (const tab of tabs) {
       if (tab.ptyId) {
         window.api.pty.kill(tab.ptyId)
       }
       closeTab(tab.id)
     }
-  }, [worktree.id, tabsByWorktree, closeTab])
+  }, [worktree.id, closeTab])
 
   const handleArchive = useCallback(() => {
     updateWorktreeMeta(worktree.id, { isArchived: true })

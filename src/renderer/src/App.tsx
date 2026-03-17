@@ -16,11 +16,37 @@ function App(): React.JSX.Element {
   // Subscribe to IPC push events
   useIpcEvents()
 
+  const settings = useAppStore((s) => s.settings)
+
   // Fetch initial data
   useEffect(() => {
     fetchRepos()
     fetchSettings()
   }, [fetchRepos, fetchSettings])
+
+  // Apply theme to document
+  useEffect(() => {
+    if (!settings) return
+
+    const applyTheme = (dark: boolean): void => {
+      document.documentElement.classList.toggle('dark', dark)
+    }
+
+    if (settings.theme === 'dark') {
+      applyTheme(true)
+      return
+    } else if (settings.theme === 'light') {
+      applyTheme(false)
+      return
+    } else {
+      // system
+      const mq = window.matchMedia('(prefers-color-scheme: dark)')
+      applyTheme(mq.matches)
+      const handler = (e: MediaQueryListEvent): void => applyTheme(e.matches)
+      mq.addEventListener('change', handler)
+      return () => mq.removeEventListener('change', handler)
+    }
+  }, [settings?.theme])
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden">

@@ -15,7 +15,7 @@ export interface RepoSlice {
   setActiveRepo: (repoId: string | null) => void
 }
 
-export const createRepoSlice: StateCreator<AppState, [], [], RepoSlice> = (set) => ({
+export const createRepoSlice: StateCreator<AppState, [], [], RepoSlice> = (set, get) => ({
   repos: [],
   activeRepoId: null,
 
@@ -44,10 +44,33 @@ export const createRepoSlice: StateCreator<AppState, [], [], RepoSlice> = (set) 
   removeRepo: async (repoId) => {
     try {
       await window.api.repos.remove({ repoId })
-      set((s) => ({
-        repos: s.repos.filter((r) => r.id !== repoId),
-        activeRepoId: s.activeRepoId === repoId ? null : s.activeRepoId
-      }))
+
+      // Kill PTYs for all worktrees belonging to this repo
+      const worktreeIds = (get().worktreesByRepo[repoId] ?? []).map((w) => w.id)
+      const killedTabIds = new Set<string>()
+      for (const wId of worktreeIds) {
+        const tabs = get().tabsByWorktree[wId] ?? []
+        for (const tab of tabs) {
+          killedTabIds.add(tab.id)
+          if (tab.ptyId) window.api.pty.kill(tab.ptyId)
+        }
+      }
+
+      set((s) => {
+        const nextWorktrees = { ...s.worktreesByRepo }
+        delete nextWorktrees[repoId]
+        const nextTabs = { ...s.tabsByWorktree }
+        for (const wId of worktreeIds) {
+          delete nextTabs[wId]
+        }
+        return {
+          repos: s.repos.filter((r) => r.id !== repoId),
+          activeRepoId: s.activeRepoId === repoId ? null : s.activeRepoId,
+          worktreesByRepo: nextWorktrees,
+          tabsByWorktree: nextTabs,
+          activeTabId: s.activeTabId && killedTabIds.has(s.activeTabId) ? null : s.activeTabId
+        }
+      })
     } catch (err) {
       console.error('Failed to remove repo:', err)
     }

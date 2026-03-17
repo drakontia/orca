@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react'
+import React, { useEffect, useMemo, useRef } from 'react'
 import { useAppStore } from '@/store'
 import { Badge } from '@/components/ui/badge'
 import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/ui/hover-card'
@@ -73,24 +73,46 @@ const WorktreeCard = React.memo(function WorktreeCard({
 
   // Fetch PR data
   const prCacheKey = repo ? `${repo.path}::${branch}` : ''
-  const pr: PRInfo | null | undefined = prCacheKey ? prCache[prCacheKey] : undefined
+  const prEntry = prCacheKey ? prCache[prCacheKey] : undefined
+  const pr: PRInfo | null | undefined = prEntry !== undefined ? prEntry.data : undefined
+  const prFetchedRef = useRef<string | null>(null)
 
   useEffect(() => {
-    if (repo && !worktree.isBare && pr === undefined) {
+    if (
+      repo &&
+      !worktree.isBare &&
+      pr === undefined &&
+      prCacheKey &&
+      prCacheKey !== prFetchedRef.current
+    ) {
+      prFetchedRef.current = prCacheKey
       fetchPRForBranch(repo.path, branch)
     }
-  }, [repo, worktree.isBare, pr, fetchPRForBranch, branch])
+  }, [repo, worktree.isBare, pr, fetchPRForBranch, branch, prCacheKey])
 
   // Fetch issue data
+  const issueCacheKey = repo && worktree.linkedIssue ? `${repo.path}::${worktree.linkedIssue}` : ''
+  const issueEntry = issueCacheKey ? issueCache[issueCacheKey] : undefined
   const issue: IssueInfo | null | undefined = worktree.linkedIssue
-    ? issueCache[worktree.linkedIssue]
+    ? issueEntry !== undefined
+      ? issueEntry.data
+      : undefined
     : null
+  const issueFetchedRef = useRef<string | null>(null)
 
   useEffect(() => {
-    if (repo && worktree.linkedIssue && issue === undefined) {
-      fetchIssue(repo.path, worktree.linkedIssue)
+    const issueKey = worktree.linkedIssue ?? null
+    if (
+      repo &&
+      issueKey &&
+      issue === undefined &&
+      issueCacheKey &&
+      issueCacheKey !== issueFetchedRef.current
+    ) {
+      issueFetchedRef.current = issueCacheKey
+      fetchIssue(repo.path, issueKey)
     }
-  }, [repo, worktree.linkedIssue, issue, fetchIssue])
+  }, [repo, worktree.linkedIssue, issue, fetchIssue, issueCacheKey])
 
   return (
     <WorktreeContextMenu worktree={worktree}>

@@ -1,20 +1,28 @@
 import { useAppStore } from './index'
+import { useShallow } from 'zustand/react/shallow'
+import type { Worktree, TerminalTab } from '../../../shared/types'
+
+const EMPTY_WORKTREES: Worktree[] = []
+const EMPTY_TABS: TerminalTab[] = []
 
 // ─── Repos ──────────────────────────────────────────────────────────
 export const useRepos = () => useAppStore((s) => s.repos)
 export const useActiveRepoId = () => useAppStore((s) => s.activeRepoId)
 export const useActiveRepo = () =>
-  useAppStore((s) => s.repos.find((r) => r.id === s.activeRepoId) ?? null)
+  useAppStore(useShallow((s) => s.repos.find((r) => r.id === s.activeRepoId) ?? null))
 
 // ─── Worktrees ──────────────────────────────────────────────────────
 export const useActiveWorktreeId = () => useAppStore((s) => s.activeWorktreeId)
 export const useWorktreesForRepo = (repoId: string | null) =>
-  useAppStore((s) => (repoId ? (s.worktreesByRepo[repoId] ?? []) : []))
-export const useAllWorktrees = () => useAppStore((s) => Object.values(s.worktreesByRepo).flat())
+  useAppStore((s) => (repoId ? (s.worktreesByRepo[repoId] ?? EMPTY_WORKTREES) : EMPTY_WORKTREES))
+export const useAllWorktrees = () =>
+  useAppStore(useShallow((s) => Object.values(s.worktreesByRepo).flat()))
 
 // ─── Terminals ──────────────────────────────────────────────────────
 export const useActiveTerminalTabs = () =>
-  useAppStore((s) => (s.activeWorktreeId ? (s.tabsByWorktree[s.activeWorktreeId] ?? []) : []))
+  useAppStore((s) =>
+    s.activeWorktreeId ? (s.tabsByWorktree[s.activeWorktreeId] ?? EMPTY_TABS) : EMPTY_TABS
+  )
 export const useActiveTabId = () => useAppStore((s) => s.activeTabId)
 
 // ─── Settings ───────────────────────────────────────────────────────

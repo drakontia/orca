@@ -12,6 +12,9 @@ import { registerGitHubHandlers } from './ipc/github'
 import { registerSettingsHandlers } from './ipc/settings'
 import { registerShellHandlers } from './ipc/shell'
 
+let mainWindow: BrowserWindow | null = null
+let store: Store | null = null
+
 // Enable WebGPU in Electron
 app.commandLine.appendSwitch('enable-features', 'Vulkan,UseSkiaGraphite')
 app.commandLine.appendSwitch('enable-unsafe-webgpu')
@@ -123,10 +126,10 @@ app.whenReady().then(() => {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template))
 
   // Initialize persistence
-  const store = new Store()
+  store = new Store()
 
   // Create window
-  const mainWindow = createWindow()
+  mainWindow = createWindow()
 
   // Register all IPC handlers
   registerRepoHandlers(mainWindow, store)
@@ -138,7 +141,10 @@ app.whenReady().then(() => {
 
   // macOS re-activate
   app.on('activate', function () {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    if (BrowserWindow.getAllWindows().length === 0) {
+      mainWindow = createWindow()
+      registerPtyHandlers(mainWindow)
+    }
   })
 })
 
@@ -147,6 +153,7 @@ app.whenReady().then(() => {
 // ---------------------------------------------------------------------------
 app.on('before-quit', () => {
   killAllPty()
+  store?.flush()
 })
 
 app.on('window-all-closed', () => {

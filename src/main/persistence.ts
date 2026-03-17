@@ -1,5 +1,5 @@
 import { app } from 'electron'
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs'
+import { readFileSync, writeFileSync, mkdirSync, existsSync, renameSync } from 'fs'
 import { join, dirname } from 'path'
 import { homedir } from 'os'
 import type { PersistedState, Repo, WorktreeMeta, GlobalSettings } from '../shared/types'
@@ -42,7 +42,9 @@ export class Store {
       try {
         const dir = dirname(DATA_FILE)
         if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
-        writeFileSync(DATA_FILE, JSON.stringify(this.state, null, 2), 'utf-8')
+        const tmpFile = `${DATA_FILE}.tmp`
+        writeFileSync(tmpFile, JSON.stringify(this.state, null, 2), 'utf-8')
+        renameSync(tmpFile, DATA_FILE)
       } catch (err) {
         console.error('[persistence] Failed to write state:', err)
       }
@@ -140,7 +142,9 @@ export class Store {
     try {
       const dir = dirname(DATA_FILE)
       if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
-      writeFileSync(DATA_FILE, JSON.stringify(this.state, null, 2), 'utf-8')
+      const tmpFile = `${DATA_FILE}.tmp`
+      writeFileSync(tmpFile, JSON.stringify(this.state, null, 2), 'utf-8')
+      renameSync(tmpFile, DATA_FILE)
     } catch (err) {
       console.error('[persistence] Failed to flush state:', err)
     }

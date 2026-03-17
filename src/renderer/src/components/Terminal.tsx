@@ -3,8 +3,8 @@ import { useAppStore } from '../store'
 import TabBar from './TabBar'
 import TerminalPane from './TerminalPane'
 
-export default function Terminal(): React.JSX.Element {
-  const activeWorktreeId = useAppStore((s) => s.activeWorktreeId)!
+export default function Terminal(): React.JSX.Element | null {
+  const activeWorktreeId = useAppStore((s) => s.activeWorktreeId)
   const worktreesByRepo = useAppStore((s) => s.worktreesByRepo)
   const tabsByWorktree = useAppStore((s) => s.tabsByWorktree)
   const activeTabId = useAppStore((s) => s.activeTabId)
@@ -13,6 +13,8 @@ export default function Terminal(): React.JSX.Element {
   const setActiveTab = useAppStore((s) => s.setActiveTab)
   const reorderTabs = useAppStore((s) => s.reorderTabs)
   const setActiveWorktree = useAppStore((s) => s.setActiveWorktree)
+
+  if (!activeWorktreeId) return null
 
   const tabs = tabsByWorktree[activeWorktreeId] ?? []
   const prevTabCountRef = useRef(tabs.length)

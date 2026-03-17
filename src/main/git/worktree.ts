@@ -1,4 +1,4 @@
-import { execSync } from 'child_process'
+import { execFileSync } from 'child_process'
 import type { GitWorktreeInfo } from '../../shared/types'
 
 /**
@@ -42,7 +42,7 @@ export function parseWorktreeList(output: string): GitWorktreeInfo[] {
  */
 export function listWorktrees(repoPath: string): GitWorktreeInfo[] {
   try {
-    const output = execSync('git worktree list --porcelain', {
+    const output = execFileSync('git', ['worktree', 'list', '--porcelain'], {
       cwd: repoPath,
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe']
@@ -66,8 +66,9 @@ export function addWorktree(
   branch: string,
   baseBranch?: string
 ): void {
-  const base = baseBranch ? ` ${baseBranch}` : ''
-  execSync(`git worktree add -b "${branch}" "${worktreePath}"${base}`, {
+  const args = ['worktree', 'add', '-b', branch, worktreePath]
+  if (baseBranch) args.push(baseBranch)
+  execFileSync('git', args, {
     cwd: repoPath,
     encoding: 'utf-8',
     stdio: ['pipe', 'pipe', 'pipe']
@@ -78,8 +79,9 @@ export function addWorktree(
  * Remove a worktree.
  */
 export function removeWorktree(repoPath: string, worktreePath: string, force = false): void {
-  const forceFlag = force ? ' --force' : ''
-  execSync(`git worktree remove "${worktreePath}"${forceFlag}`, {
+  const args = ['worktree', 'remove', worktreePath]
+  if (force) args.push('--force')
+  execFileSync('git', args, {
     cwd: repoPath,
     encoding: 'utf-8',
     stdio: ['pipe', 'pipe', 'pipe']

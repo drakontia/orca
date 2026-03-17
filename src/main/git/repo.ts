@@ -77,7 +77,7 @@ export function getGitUsername(path: string): string {
 export function getDefaultBranch(path: string): string {
   try {
     // Check if 'main' branch exists
-    execSync('git rev-parse --verify main', {
+    execSync('git rev-parse --verify refs/heads/main', {
       cwd: path,
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe']
@@ -85,7 +85,7 @@ export function getDefaultBranch(path: string): string {
     return 'main'
   } catch {
     try {
-      execSync('git rev-parse --verify master', {
+      execSync('git rev-parse --verify refs/heads/master', {
         cwd: path,
         encoding: 'utf-8',
         stdio: ['pipe', 'pipe', 'pipe']
