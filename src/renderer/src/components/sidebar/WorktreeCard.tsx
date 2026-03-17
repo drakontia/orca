@@ -127,12 +127,6 @@ const WorktreeCard = React.memo(function WorktreeCard({
     [worktree.id, setActiveWorktree]
   )
 
-  // Memoize badge style to avoid new object each render
-  const badgeStyle = useMemo(
-    () => (repo ? { backgroundColor: repo.badgeColor + '22', color: repo.badgeColor } : undefined),
-    [repo?.badgeColor]
-  )
-
   return (
     <WorktreeContextMenu worktree={worktree}>
       <div
@@ -162,14 +156,13 @@ const WorktreeCard = React.memo(function WorktreeCard({
             {repo && (
               <Badge
                 variant="dot"
-                className="h-4 px-1.5 text-[9px] font-medium rounded-sm shrink-0"
-                style={badgeStyle}
+                className="h-[18px] px-1.5 text-[10px] font-semibold font-mono rounded-[3px] shrink-0"
               >
                 <RepoDotLabel
                   name={repo.displayName}
                   color={repo.badgeColor}
                   className="max-w-[9rem]"
-                  dotClassName="size-1"
+                  dotClassName="size-1.5"
                 />
               </Badge>
             )}
@@ -185,9 +178,11 @@ const WorktreeCard = React.memo(function WorktreeCard({
           {pr && (
             <HoverCard openDelay={300}>
               <HoverCardTrigger asChild>
-                <div className="flex items-center gap-1 min-w-0 cursor-default">
-                  <span className="text-[10px] text-muted-foreground shrink-0">PR</span>
-                  <span className="text-[10px] text-foreground/80 truncate">{pr.title}</span>
+                <div className="flex items-center justify-between gap-2 min-w-0 cursor-default">
+                  <div className="flex items-center gap-1 min-w-0">
+                    <span className="text-[10px] text-muted-foreground shrink-0">PR</span>
+                    <span className="text-[10px] text-foreground/80 truncate">{pr.title}</span>
+                  </div>
                   <Badge
                     variant="secondary"
                     className={cn(
@@ -228,9 +223,11 @@ const WorktreeCard = React.memo(function WorktreeCard({
           {issue && (
             <HoverCard openDelay={300}>
               <HoverCardTrigger asChild>
-                <div className="flex items-center gap-1 min-w-0 cursor-default">
-                  <span className="text-[10px] text-muted-foreground shrink-0">Issue</span>
-                  <span className="text-[10px] text-foreground/80 truncate">{issue.title}</span>
+                <div className="flex items-center justify-between gap-2 min-w-0 cursor-default">
+                  <div className="flex items-center gap-1 min-w-0">
+                    <span className="text-[10px] text-muted-foreground shrink-0">Issue</span>
+                    <span className="text-[10px] text-foreground/80 truncate">{issue.title}</span>
+                  </div>
                   <Badge
                     variant="secondary"
                     className={cn(

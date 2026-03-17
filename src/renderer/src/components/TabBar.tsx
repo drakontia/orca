@@ -19,12 +19,7 @@ import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
-  ContextMenuRadioGroup,
-  ContextMenuRadioItem,
   ContextMenuSeparator,
-  ContextMenuSub,
-  ContextMenuSubContent,
-  ContextMenuSubTrigger,
   ContextMenuTrigger
 } from '@/components/ui/context-menu'
 import type { TerminalTab } from '../../../shared/types'
@@ -43,14 +38,16 @@ interface SortableTabProps {
 }
 
 const TAB_COLORS = [
-  { label: 'None', value: 'none' },
+  { label: 'None', value: null },
+  { label: 'Blue', value: '#3b82f6' },
+  { label: 'Purple', value: '#a855f7' },
+  { label: 'Pink', value: '#ec4899' },
   { label: 'Red', value: '#ef4444' },
   { label: 'Orange', value: '#f97316' },
   { label: 'Yellow', value: '#eab308' },
   { label: 'Green', value: '#22c55e' },
-  { label: 'Blue', value: '#3b82f6' },
-  { label: 'Purple', value: '#a855f7' },
-  { label: 'Pink', value: '#ec4899' }
+  { label: 'Teal', value: '#14b8a6' },
+  { label: 'Gray', value: '#9ca3af' }
 ]
 
 function SortableTab({
@@ -103,6 +100,12 @@ function SortableTab({
         >
           <TerminalIcon className="w-3.5 h-3.5 mr-1.5 shrink-0 text-muted-foreground" />
           <span className="truncate max-w-[130px] mr-1.5">{tab.customTitle ?? tab.title}</span>
+          {tab.color && (
+            <span
+              className="mr-1.5 size-2 rounded-full shrink-0"
+              style={{ backgroundColor: tab.color }}
+            />
+          )}
           <button
             className={`flex items-center justify-center w-4 h-4 rounded-sm shrink-0 ${
               isActive
@@ -117,12 +120,6 @@ function SortableTab({
           >
             <X className="w-3 h-3" />
           </button>
-          {tab.color && (
-            <span
-              className="ml-1.5 size-2 rounded-full shrink-0"
-              style={{ backgroundColor: tab.color }}
-            />
-          )}
         </div>
       </ContextMenuTrigger>
 
@@ -136,7 +133,7 @@ function SortableTab({
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem
-          onClick={() => {
+          onSelect={() => {
             const next = window.prompt('Change tab title', tab.customTitle ?? tab.title)
             if (next === null) return
             const trimmed = next.trim()
@@ -145,29 +142,32 @@ function SortableTab({
         >
           Change Title
         </ContextMenuItem>
-        <ContextMenuSub>
-          <ContextMenuSubTrigger>Assign Tab Color</ContextMenuSubTrigger>
-          <ContextMenuSubContent className="w-44">
-            <ContextMenuRadioGroup
-              value={tab.color ?? 'none'}
-              onValueChange={(value) => onSetTabColor(tab.id, value === 'none' ? null : value)}
-            >
-              {TAB_COLORS.map((color) => (
-                <ContextMenuRadioItem key={color.value} value={color.value} className="gap-2">
-                  {color.value !== 'none' ? (
-                    <span
-                      className="inline-block size-2 rounded-full"
-                      style={{ backgroundColor: color.value }}
-                    />
-                  ) : (
-                    <span className="inline-block size-2 rounded-full bg-transparent border border-muted-foreground/40" />
+        <div className="px-2 pt-1.5 pb-1">
+          <div className="text-xs font-medium text-muted-foreground mb-1.5">Tab Color</div>
+          <div className="flex flex-wrap gap-2">
+            {TAB_COLORS.map((color) => {
+              const isSelected = tab.color === color.value
+              return (
+                <ContextMenuItem
+                  key={color.label}
+                  className={`relative h-4 w-4 min-w-4 p-0 rounded-full border ${
+                    isSelected ? 'ring-1 ring-foreground/70 ring-offset-1 ring-offset-popover' : ''
+                  } ${
+                    color.value ? 'border-transparent' : 'border-muted-foreground/50 bg-transparent'
+                  }`}
+                  style={color.value ? { backgroundColor: color.value } : undefined}
+                  onSelect={() => {
+                    onSetTabColor(tab.id, color.value)
+                  }}
+                >
+                  {color.value === null && (
+                    <span className="absolute block h-px w-3 rotate-45 bg-muted-foreground/80" />
                   )}
-                  {color.label}
-                </ContextMenuRadioItem>
-              ))}
-            </ContextMenuRadioGroup>
-          </ContextMenuSubContent>
-        </ContextMenuSub>
+                </ContextMenuItem>
+              )
+            })}
+          </div>
+        </div>
       </ContextMenuContent>
     </ContextMenu>
   )
