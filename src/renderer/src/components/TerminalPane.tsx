@@ -276,12 +276,14 @@ export default function TerminalPane({
 
   // ResizeObserver to keep terminal sized to container
   useEffect(() => {
+    if (!isActive) return
+
     const container = containerRef.current
     if (!container) return
 
     const ro = new ResizeObserver(() => {
       const restty = resttyRef.current
-      if (!restty || !isActive) return
+      if (!restty) return
       const panes = restty.getPanes()
       for (const p of panes) {
         p.app.updateSize(true)
@@ -294,8 +296,10 @@ export default function TerminalPane({
   // Terminal pane shortcuts handled at window capture phase so they remain
   // reliable even when focus is inside the canvas/IME internals.
   useEffect(() => {
+    if (!isActive) return
+
     const onKeyDown = (e: KeyboardEvent): void => {
-      if (!isActive || e.repeat) return
+      if (e.repeat) return
       if (!e.metaKey || e.altKey || e.ctrlKey) return
 
       const restty = resttyRef.current

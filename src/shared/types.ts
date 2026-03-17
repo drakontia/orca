@@ -45,6 +45,8 @@ export interface TerminalTab {
   ptyId: string | null
   worktreeId: string
   title: string
+  customTitle: string | null
+  color: string | null
   sortOrder: number
   createdAt: number
 }

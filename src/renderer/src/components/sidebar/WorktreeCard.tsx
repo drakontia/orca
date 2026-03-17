@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useCallback } from 'react'
 import { useAppStore } from '@/store'
 import { Badge } from '@/components/ui/badge'
 import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/ui/hover-card'
+import RepoDotLabel from '@/components/repo/RepoDotLabel'
 import StatusIndicator from './StatusIndicator'
 import WorktreeContextMenu from './WorktreeContextMenu'
 import { cn } from '@/lib/utils'
@@ -160,11 +161,16 @@ const WorktreeCard = React.memo(function WorktreeCard({
           <div className="flex items-center gap-1 min-w-0">
             {repo && (
               <Badge
-                variant="secondary"
+                variant="dot"
                 className="h-4 px-1.5 text-[9px] font-medium rounded-sm shrink-0"
                 style={badgeStyle}
               >
-                {repo.displayName}
+                <RepoDotLabel
+                  name={repo.displayName}
+                  color={repo.badgeColor}
+                  className="max-w-[9rem]"
+                  dotClassName="size-1"
+                />
               </Badge>
             )}
             <span className="text-[11px] text-muted-foreground truncate font-mono">{branch}</span>

@@ -17,6 +17,7 @@ import {
   SelectContent,
   SelectItem
 } from '@/components/ui/select'
+import RepoDotLabel from '@/components/repo/RepoDotLabel'
 
 const AddWorktreeDialog = React.memo(function AddWorktreeDialog() {
   const activeModal = useAppStore((s) => s.activeModal)
@@ -32,6 +33,7 @@ const AddWorktreeDialog = React.memo(function AddWorktreeDialog() {
   const [creating, setCreating] = useState(false)
 
   const isOpen = activeModal === 'create-worktree'
+  const selectedRepo = repos.find((r) => r.id === repoId)
 
   const handleOpenChange = useCallback(
     (open: boolean) => {
@@ -93,12 +95,20 @@ const AddWorktreeDialog = React.memo(function AddWorktreeDialog() {
             <label className="text-[11px] font-medium text-muted-foreground">Repository</label>
             <Select value={repoId} onValueChange={setRepoId}>
               <SelectTrigger className="h-8 text-xs w-full">
-                <SelectValue placeholder="Select repo..." />
+                <SelectValue placeholder="Select repo...">
+                  {selectedRepo ? (
+                    <RepoDotLabel
+                      name={selectedRepo.displayName}
+                      color={selectedRepo.badgeColor}
+                      dotClassName="size-1.5"
+                    />
+                  ) : null}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {repos.map((r) => (
                   <SelectItem key={r.id} value={r.id}>
-                    {r.displayName}
+                    <RepoDotLabel name={r.displayName} color={r.badgeColor} />
                   </SelectItem>
                 ))}
               </SelectContent>

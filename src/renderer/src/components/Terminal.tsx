@@ -13,10 +13,10 @@ export default function Terminal(): React.JSX.Element | null {
   const setActiveTab = useAppStore((s) => s.setActiveTab)
   const reorderTabs = useAppStore((s) => s.reorderTabs)
   const setActiveWorktree = useAppStore((s) => s.setActiveWorktree)
+  const setTabCustomTitle = useAppStore((s) => s.setTabCustomTitle)
+  const setTabColor = useAppStore((s) => s.setTabColor)
 
-  if (!activeWorktreeId) return null
-
-  const tabs = tabsByWorktree[activeWorktreeId] ?? []
+  const tabs = activeWorktreeId ? (tabsByWorktree[activeWorktreeId] ?? []) : []
   const prevTabCountRef = useRef(tabs.length)
   const tabBarRef = useRef<HTMLDivElement>(null)
 
@@ -31,6 +31,7 @@ export default function Terminal(): React.JSX.Element | null {
 
   // Auto-create first tab when worktree activates
   useEffect(() => {
+    if (!activeWorktreeId) return
     if (activeWorktreeId && tabs.length === 0) {
       createTab(activeWorktreeId)
     }
@@ -58,11 +59,13 @@ export default function Terminal(): React.JSX.Element | null {
   }, [tabs.length])
 
   const handleNewTab = useCallback(() => {
+    if (!activeWorktreeId) return
     createTab(activeWorktreeId)
   }, [activeWorktreeId, createTab])
 
   const handleCloseTab = useCallback(
     (tabId: string) => {
+      if (!activeWorktreeId) return
       const currentTabs = useAppStore.getState().tabsByWorktree[activeWorktreeId] ?? []
       if (currentTabs.length <= 1) {
         // Last tab - deactivate worktree
@@ -89,8 +92,38 @@ export default function Terminal(): React.JSX.Element | null {
     [handleCloseTab]
   )
 
+  const handleCloseOthers = useCallback(
+    (tabId: string) => {
+      if (!activeWorktreeId) return
+      const currentTabs = useAppStore.getState().tabsByWorktree[activeWorktreeId] ?? []
+      setActiveTab(tabId)
+      for (const tab of currentTabs) {
+        if (tab.id !== tabId) {
+          closeTab(tab.id)
+        }
+      }
+    },
+    [activeWorktreeId, closeTab, setActiveTab]
+  )
+
+  const handleCloseTabsToRight = useCallback(
+    (tabId: string) => {
+      if (!activeWorktreeId) return
+      const currentTabs = useAppStore.getState().tabsByWorktree[activeWorktreeId] ?? []
+      const index = currentTabs.findIndex((t) => t.id === tabId)
+      if (index === -1) return
+      const rightTabs = currentTabs.slice(index + 1)
+      for (const tab of rightTabs) {
+        closeTab(tab.id)
+      }
+    },
+    [activeWorktreeId, closeTab]
+  )
+
   // Keyboard shortcuts
   useEffect(() => {
+    if (!activeWorktreeId) return
+
     const onKeyDown = (e: KeyboardEvent): void => {
       // Cmd+T - new tab
       if (e.metaKey && e.key === 't' && !e.shiftKey && !e.repeat) {
@@ -127,6 +160,8 @@ export default function Terminal(): React.JSX.Element | null {
     return () => window.removeEventListener('keydown', onKeyDown, { capture: true })
   }, [activeWorktreeId, handleNewTab, handleCloseTab, setActiveTab])
 
+  if (!activeWorktreeId) return null
+
   return (
     <div className="flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
       {/* Animated tab bar container using CSS grid for smooth height animation */}
@@ -142,8 +177,12 @@ export default function Terminal(): React.JSX.Element | null {
             worktreeId={activeWorktreeId}
             onActivate={setActiveTab}
             onClose={handleCloseTab}
+            onCloseOthers={handleCloseOthers}
+            onCloseToRight={handleCloseTabsToRight}
             onReorder={reorderTabs}
             onNewTab={handleNewTab}
+            onSetCustomTitle={setTabCustomTitle}
+            onSetTabColor={setTabColor}
           />
         </div>
       </div>

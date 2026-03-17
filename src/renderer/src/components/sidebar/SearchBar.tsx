@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/select'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
+import RepoDotLabel from '@/components/repo/RepoDotLabel'
 
 const SearchBar = React.memo(function SearchBar() {
   const searchQuery = useAppStore((s) => s.searchQuery)
@@ -21,6 +22,7 @@ const SearchBar = React.memo(function SearchBar() {
   const filterRepoId = useAppStore((s) => s.filterRepoId)
   const setFilterRepoId = useAppStore((s) => s.setFilterRepoId)
   const repos = useAppStore((s) => s.repos)
+  const selectedRepo = repos.find((r) => r.id === filterRepoId)
 
   const handleClear = useCallback(() => setSearchQuery(''), [setSearchQuery])
   const handleToggleActive = useCallback(
@@ -68,13 +70,23 @@ const SearchBar = React.memo(function SearchBar() {
                 size="sm"
                 className="h-5 w-auto gap-1 border-none bg-transparent px-1 text-[10px] shadow-none focus-visible:ring-0"
               >
-                <SelectValue />
+                <SelectValue>
+                  {selectedRepo ? (
+                    <RepoDotLabel
+                      name={selectedRepo.displayName}
+                      color={selectedRepo.badgeColor}
+                      dotClassName="size-1"
+                    />
+                  ) : (
+                    'All repos'
+                  )}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent position="popper" align="end">
                 <SelectItem value="__all__">All repos</SelectItem>
                 {repos.map((r) => (
                   <SelectItem key={r.id} value={r.id}>
-                    {r.displayName}
+                    <RepoDotLabel name={r.displayName} color={r.badgeColor} />
                   </SelectItem>
                 ))}
               </SelectContent>

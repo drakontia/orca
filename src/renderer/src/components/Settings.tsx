@@ -91,7 +91,7 @@ function Settings(): React.JSX.Element {
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-background">
+    <div className="flex-1 flex min-h-0 flex-col overflow-hidden bg-background">
       {/* Header */}
       <div className="flex items-center gap-3 px-6 py-4 border-b">
         <Button variant="ghost" size="icon-sm" onClick={() => setActiveView('terminal')}>
@@ -101,7 +101,7 @@ function Settings(): React.JSX.Element {
       </div>
 
       {/* Content */}
-      <ScrollArea className="flex-1">
+      <ScrollArea className="min-h-0 flex-1">
         <div className="max-w-2xl px-8 py-6 space-y-8">
           {/* ── Workspace ────────────────────────────────────── */}
           <section className="space-y-4">

@@ -10,6 +10,8 @@ export interface TerminalSlice {
   reorderTabs: (worktreeId: string, tabIds: string[]) => void
   setActiveTab: (tabId: string) => void
   updateTabTitle: (tabId: string, title: string) => void
+  setTabCustomTitle: (tabId: string, title: string | null) => void
+  setTabColor: (tabId: string, color: string | null) => void
   updateTabPtyId: (tabId: string, ptyId: string) => void
 }
 
@@ -27,6 +29,8 @@ export const createTerminalSlice: StateCreator<AppState, [], [], TerminalSlice> 
         ptyId: null,
         worktreeId,
         title: `Terminal ${existing.length + 1}`,
+        customTitle: null,
+        color: null,
         sortOrder: existing.length,
         createdAt: Date.now()
       }
@@ -81,6 +85,26 @@ export const createTerminalSlice: StateCreator<AppState, [], [], TerminalSlice> 
       const next = { ...s.tabsByWorktree }
       for (const wId of Object.keys(next)) {
         next[wId] = next[wId].map((t) => (t.id === tabId ? { ...t, title } : t))
+      }
+      return { tabsByWorktree: next }
+    })
+  },
+
+  setTabCustomTitle: (tabId, title) => {
+    set((s) => {
+      const next = { ...s.tabsByWorktree }
+      for (const wId of Object.keys(next)) {
+        next[wId] = next[wId].map((t) => (t.id === tabId ? { ...t, customTitle: title } : t))
+      }
+      return { tabsByWorktree: next }
+    })
+  },
+
+  setTabColor: (tabId, color) => {
+    set((s) => {
+      const next = { ...s.tabsByWorktree }
+      for (const wId of Object.keys(next)) {
+        next[wId] = next[wId].map((t) => (t.id === tabId ? { ...t, color } : t))
       }
       return { tabsByWorktree: next }
     })
