@@ -1,34 +1,57 @@
-import Versions from './components/Versions'
-import electronLogo from './assets/electron.svg'
+import { useEffect } from 'react'
+import { useAppStore } from './store'
+import Sidebar from './components/Sidebar'
+import Terminal from './components/Terminal'
+import Landing from './components/Landing'
 
 function App(): React.JSX.Element {
-  const ipcHandle = (): void => window.electron.ipcRenderer.send('ping')
+  const toggleSidebar = useAppStore((s) => s.toggleSidebar)
+  const showTerminal = useAppStore((s) => s.showTerminal)
+  const setShowTerminal = useAppStore((s) => s.setShowTerminal)
+  const terminalTitle = useAppStore((s) => s.terminalTitle)
+
+  // Enter key on landing page to spawn a new terminal
+  useEffect(() => {
+    if (showTerminal) return
+    const onKeyDown = (e: KeyboardEvent): void => {
+      if (e.key === 'Enter' && !e.repeat) {
+        e.preventDefault()
+        setShowTerminal(true)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [showTerminal, setShowTerminal])
 
   return (
-    <>
-      <img alt="logo" className="logo" src={electronLogo} />
-      <div className="creator">Powered by electron-vite</div>
-      <div className="text">
-        Build an Electron app with <span className="react">React</span>
-        &nbsp;and <span className="ts">TypeScript</span>
-      </div>
-      <p className="tip">
-        Please try pressing <code>F12</code> to open the devTool
-      </p>
-      <div className="actions">
-        <div className="action">
-          <a href="https://electron-vite.org/" target="_blank" rel="noreferrer">
-            Documentation
-          </a>
+    <div className="app-layout">
+      <div className="titlebar">
+        <div className="titlebar-traffic-light-pad" />
+        <button className="sidebar-toggle" onClick={toggleSidebar} title="Toggle sidebar">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          >
+            <line x1="2" y1="4" x2="14" y2="4" />
+            <line x1="2" y1="8" x2="14" y2="8" />
+            <line x1="2" y1="12" x2="14" y2="12" />
+          </svg>
+        </button>
+        <div className="titlebar-title">
+          {showTerminal && terminalTitle ? terminalTitle : 'Orca'}
         </div>
-        <div className="action">
-          <a target="_blank" rel="noreferrer" onClick={ipcHandle}>
-            Send IPC
-          </a>
-        </div>
+        <div className="titlebar-spacer" />
       </div>
-      <Versions></Versions>
-    </>
+      <div className="content-area">
+        <Sidebar />
+        {showTerminal ? <Terminal /> : <Landing />}
+      </div>
+    </div>
   )
 }
 
