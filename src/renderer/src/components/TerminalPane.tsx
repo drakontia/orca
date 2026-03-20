@@ -878,11 +878,30 @@ export default function TerminalPane({
       pane?.app.sendKeyInput('\x17')
     }
 
+    // Shift+Enter → insert a literal newline into the shell command line.
+    // Sends Ctrl+V (\x16, quoted-insert) followed by LF (\x0a) so that
+    // both bash (readline) and zsh (zle) insert a newline character instead
+    // of executing the command.
+    const onShiftEnter = (e: KeyboardEvent): void => {
+      if (!e.shiftKey || e.metaKey || e.altKey || e.ctrlKey) return
+      if (e.key !== 'Enter') return
+
+      const restty = resttyRef.current
+      if (!restty) return
+
+      e.preventDefault()
+      e.stopPropagation()
+      const pane = restty.getActivePane() ?? restty.getPanes()[0]
+      pane?.app.sendKeyInput('\x16\x0a')
+    }
+
     window.addEventListener('keydown', onKeyDown, { capture: true })
     window.addEventListener('keydown', onCtrlBackspace, { capture: true })
+    window.addEventListener('keydown', onShiftEnter, { capture: true })
     return () => {
       window.removeEventListener('keydown', onKeyDown, { capture: true })
       window.removeEventListener('keydown', onCtrlBackspace, { capture: true })
+      window.removeEventListener('keydown', onShiftEnter, { capture: true })
     }
   }, [isActive])
 
