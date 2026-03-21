@@ -747,8 +747,8 @@ function Settings(): React.JSX.Element {
 
   return (
     <div className="settings-view-shell flex min-h-0 flex-1 overflow-hidden bg-background">
-      <aside className="flex w-[260px] shrink-0 flex-col border-r bg-card/40">
-        <div className="border-b px-3 py-3">
+      <aside className="flex w-[260px] shrink-0 flex-col border-r border-border/50 bg-card/40">
+        <div className="border-b border-border/50 px-3 py-3">
           <Button
             variant="ghost"
             size="sm"
@@ -835,7 +835,7 @@ function Settings(): React.JSX.Element {
       </aside>
 
       <div className="flex min-h-0 flex-1 flex-col">
-        <div className="sticky top-0 z-10 border-b bg-background/95 py-6 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <div className="sticky top-0 z-10 border-b border-border/50 bg-background/95 py-6 backdrop-blur supports-[backdrop-filter]:bg-background/80">
           <div className={contentClassName}>{pageHeader}</div>
         </div>
 

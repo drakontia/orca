@@ -103,7 +103,7 @@
   --accent-foreground: #fafafa;
   --destructive: #ff6568;
   --destructive-foreground: #df2225;
-  --border: rgb(255 255 255 / 0.1);
+  --border: rgb(255 255 255 / 0.07);
   --input: rgb(255 255 255 / 0.15);
   --ring: #737373;
   --chart-1: var(--color-blue-300);
@@ -117,7 +117,7 @@
   --sidebar-primary-foreground: #fafafa;
   --sidebar-accent: #262626;
   --sidebar-accent-foreground: #fafafa;
-  --sidebar-border: rgb(255 255 255 / 0.1);
+  --sidebar-border: rgb(255 255 255 / 0.07);
   --sidebar-ring: #525252;
 }
 

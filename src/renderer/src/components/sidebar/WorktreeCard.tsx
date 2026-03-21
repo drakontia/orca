@@ -166,7 +166,9 @@ const WorktreeCard = React.memo(function WorktreeCard({
       <div
         className={cn(
           'group relative flex items-start gap-2 px-2.5 py-1.5 rounded-md cursor-pointer transition-colors',
-          isActive ? 'bg-accent' : 'hover:bg-accent/50',
+          isActive
+            ? 'bg-accent dark:bg-accent/45 ring-1 ring-primary/25 dark:ring-primary/40'
+            : 'hover:bg-accent/50',
           isDeleting && 'opacity-70'
         )}
         onClick={handleClick}
