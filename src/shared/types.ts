@@ -157,6 +157,7 @@ export interface PersistedUIState {
   lastActiveRepoId: string | null
   lastActiveWorktreeId: string | null
   sidebarWidth: number
+  rightSidebarWidth: number
   groupBy: 'none' | 'repo' | 'pr-status'
   sortBy: 'name' | 'recent' | 'repo'
   uiZoomLevel: number
@@ -174,4 +175,27 @@ export interface PersistedState {
     issue: Record<string, { data: IssueInfo | null; fetchedAt: number }>
   }
   workspaceSession: WorkspaceSessionState
+}
+
+// ─── Filesystem ─────────────────────────────────────────────
+export interface DirEntry {
+  name: string
+  isDirectory: boolean
+  isSymlink: boolean
+}
+
+// ─── Git Status ─────────────────────────────────────────────
+export type GitFileStatus = 'modified' | 'added' | 'deleted' | 'renamed' | 'untracked' | 'copied'
+export type GitStagingArea = 'staged' | 'unstaged' | 'untracked'
+
+export interface GitStatusEntry {
+  path: string
+  status: GitFileStatus
+  area: GitStagingArea
+  oldPath?: string
+}
+
+export interface GitDiffResult {
+  originalContent: string
+  modifiedContent: string
 }

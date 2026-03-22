@@ -13,6 +13,7 @@ import { registerSettingsHandlers } from './ipc/settings'
 import { registerShellHandlers } from './ipc/shell'
 import { registerSessionHandlers } from './ipc/session'
 import { registerUIHandlers } from './ipc/ui'
+import { registerFilesystemHandlers } from './ipc/filesystem'
 import { warmSystemFontFamilies } from './system-fonts'
 import {
   setupAutoUpdater,
@@ -223,6 +224,7 @@ app.whenReady().then(() => {
   registerShellHandlers()
   registerSessionHandlers(store)
   registerUIHandlers(store)
+  registerFilesystemHandlers(store)
   warmSystemFontFamilies()
   setupAutoUpdater(mainWindow)
 

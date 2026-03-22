@@ -177,6 +177,34 @@
   scrollbar-color: var(--muted-foreground, #737373) transparent;
 }
 
+/* ── Editor-style scrollbar (matches Monaco) ────────── */
+
+.scrollbar-editor {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(121, 121, 121, 0.4) transparent;
+}
+
+.scrollbar-editor::-webkit-scrollbar {
+  width: 14px;
+}
+
+.scrollbar-editor::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-editor::-webkit-scrollbar-thumb {
+  background: rgba(121, 121, 121, 0.4);
+  border: 3px solid transparent;
+  border-radius: 7px;
+  background-clip: padding-box;
+}
+
+.scrollbar-editor::-webkit-scrollbar-thumb:hover {
+  background: rgba(121, 121, 121, 0.7);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+
 /* Hide tab-strip scrollbars to prevent drag-time scrollbar flashes */
 .terminal-tab-strip {
   -ms-overflow-style: none;

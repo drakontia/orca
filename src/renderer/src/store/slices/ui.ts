@@ -71,6 +71,7 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set) => (
   hydratePersistedUI: (ui) =>
     set({
       sidebarWidth: ui.sidebarWidth,
+      rightSidebarWidth: ui.rightSidebarWidth ?? 280,
       groupBy: ui.groupBy,
       sortBy: ui.sortBy,
       persistedUIReady: true

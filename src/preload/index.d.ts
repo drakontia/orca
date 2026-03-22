@@ -9,7 +9,10 @@ import type {
   OrcaHooks,
   PersistedUIState,
   WorkspaceSessionState,
-  UpdateStatus
+  UpdateStatus,
+  DirEntry,
+  GitStatusEntry,
+  GitDiffResult
 } from '../../shared/types'
 
 interface ReposApi {
@@ -101,6 +104,27 @@ interface UIApi {
   setZoomLevel: (level: number) => void
 }
 
+interface FsApi {
+  readDir: (args: { dirPath: string }) => Promise<DirEntry[]>
+  readFile: (args: { filePath: string }) => Promise<{ content: string; isBinary: boolean }>
+  writeFile: (args: { filePath: string; content: string }) => Promise<void>
+  stat: (args: {
+    filePath: string
+  }) => Promise<{ size: number; isDirectory: boolean; mtime: number }>
+}
+
+interface GitApi {
+  status: (args: { worktreePath: string }) => Promise<GitStatusEntry[]>
+  diff: (args: {
+    worktreePath: string
+    filePath: string
+    staged: boolean
+  }) => Promise<GitDiffResult>
+  stage: (args: { worktreePath: string; filePath: string }) => Promise<void>
+  unstage: (args: { worktreePath: string; filePath: string }) => Promise<void>
+  discard: (args: { worktreePath: string; filePath: string }) => Promise<void>
+}
+
 interface Api {
   repos: ReposApi
   worktrees: WorktreesApi
@@ -112,6 +136,8 @@ interface Api {
   cache: CacheApi
   session: SessionApi
   updater: UpdaterApi
+  fs: FsApi
+  git: GitApi
   ui: UIApi
 }
 

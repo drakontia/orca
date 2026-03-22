@@ -173,6 +173,38 @@ const api = {
     }
   },
 
+  fs: {
+    readDir: (args: {
+      dirPath: string
+    }): Promise<{ name: string; isDirectory: boolean; isSymlink: boolean }[]> =>
+      ipcRenderer.invoke('fs:readDir', args),
+    readFile: (args: { filePath: string }): Promise<{ content: string; isBinary: boolean }> =>
+      ipcRenderer.invoke('fs:readFile', args),
+    writeFile: (args: { filePath: string; content: string }): Promise<void> =>
+      ipcRenderer.invoke('fs:writeFile', args),
+    stat: (args: {
+      filePath: string
+    }): Promise<{ size: number; isDirectory: boolean; mtime: number }> =>
+      ipcRenderer.invoke('fs:stat', args)
+  },
+
+  git: {
+    status: (args: { worktreePath: string }): Promise<unknown[]> =>
+      ipcRenderer.invoke('git:status', args),
+    diff: (args: {
+      worktreePath: string
+      filePath: string
+      staged: boolean
+    }): Promise<{ originalContent: string; modifiedContent: string }> =>
+      ipcRenderer.invoke('git:diff', args),
+    stage: (args: { worktreePath: string; filePath: string }): Promise<void> =>
+      ipcRenderer.invoke('git:stage', args),
+    unstage: (args: { worktreePath: string; filePath: string }): Promise<void> =>
+      ipcRenderer.invoke('git:unstage', args),
+    discard: (args: { worktreePath: string; filePath: string }): Promise<void> =>
+      ipcRenderer.invoke('git:discard', args)
+  },
+
   ui: {
     get: (): Promise<unknown> => ipcRenderer.invoke('ui:get'),
     set: (args: Record<string, unknown>): Promise<void> => ipcRenderer.invoke('ui:set', args),

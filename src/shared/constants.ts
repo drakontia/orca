@@ -70,6 +70,7 @@ export function getDefaultUIState(): PersistedUIState {
     lastActiveRepoId: null,
     lastActiveWorktreeId: null,
     sidebarWidth: 280,
+    rightSidebarWidth: 350,
     groupBy: 'none',
     sortBy: 'name',
     uiZoomLevel: 0

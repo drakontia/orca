@@ -6,6 +6,7 @@ import { createTerminalSlice } from './slices/terminals'
 import { createUISlice } from './slices/ui'
 import { createSettingsSlice } from './slices/settings'
 import { createGitHubSlice } from './slices/github'
+import { createEditorSlice } from './slices/editor'
 
 export const useAppStore = create<AppState>()((...a) => ({
   ...createRepoSlice(...a),
@@ -13,7 +14,8 @@ export const useAppStore = create<AppState>()((...a) => ({
   ...createTerminalSlice(...a),
   ...createUISlice(...a),
   ...createSettingsSlice(...a),
-  ...createGitHubSlice(...a)
+  ...createGitHubSlice(...a),
+  ...createEditorSlice(...a)
 }))
 
 export type { AppState } from './types'

@@ -1,8 +1,19 @@
-import { useEffect, useCallback, useRef } from 'react'
+import { useEffect, useCallback, useRef, useState, lazy, Suspense } from 'react'
 import { TOGGLE_TERMINAL_PANE_EXPAND_EVENT } from '@/constants/terminal'
 import { useAppStore } from '../store'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 import TabBar from './TabBar'
 import TerminalPane from './TerminalPane'
+
+const EditorPanel = lazy(() => import('./editor/EditorPanel'))
 
 export default function Terminal(): React.JSX.Element | null {
   const activeWorktreeId = useAppStore((s) => s.activeWorktreeId)
@@ -20,10 +31,61 @@ export default function Terminal(): React.JSX.Element | null {
   const consumeSuppressedPtyExit = useAppStore((s) => s.consumeSuppressedPtyExit)
   const expandedPaneByTabId = useAppStore((s) => s.expandedPaneByTabId)
   const workspaceSessionReady = useAppStore((s) => s.workspaceSessionReady)
+  const openFiles = useAppStore((s) => s.openFiles)
+  const activeFileId = useAppStore((s) => s.activeFileId)
+  const activeTabType = useAppStore((s) => s.activeTabType)
+  const setActiveTabType = useAppStore((s) => s.setActiveTabType)
+  const setActiveFile = useAppStore((s) => s.setActiveFile)
+  const closeFile = useAppStore((s) => s.closeFile)
+  const closeAllFiles = useAppStore((s) => s.closeAllFiles)
+
+  const markFileDirty = useAppStore((s) => s.markFileDirty)
 
   const tabs = activeWorktreeId ? (tabsByWorktree[activeWorktreeId] ?? []) : []
   const allWorktrees = Object.values(worktreesByRepo).flat()
-  const prevTabCountRef = useRef(tabs.length)
+
+  // Save confirmation dialog state
+  const [saveDialogFileId, setSaveDialogFileId] = useState<string | null>(null)
+  const saveDialogFile = saveDialogFileId ? openFiles.find((f) => f.id === saveDialogFileId) : null
+
+  const handleCloseFile = useCallback(
+    (fileId: string) => {
+      const file = useAppStore.getState().openFiles.find((f) => f.id === fileId)
+      if (file?.isDirty) {
+        setSaveDialogFileId(fileId)
+        return
+      }
+      closeFile(fileId)
+    },
+    [closeFile]
+  )
+
+  const handleSaveDialogSave = useCallback(async () => {
+    if (!saveDialogFileId) return
+    const file = useAppStore.getState().openFiles.find((f) => f.id === saveDialogFileId)
+    if (!file) return
+    // EditorPanel stores edit buffers internally — we need to read the current content from the editor.
+    // The simplest approach: dispatch a custom event that the MonacoEditor listens for to trigger save,
+    // then close. But that's complex. Instead, just save via the editor ref approach.
+    // Actually, we can read the current content from the DOM's Monaco instance.
+    // Simpler: just close without saving is "Don't Save", and save is handled by a custom event.
+    // For now, trigger a save event that EditorPanel listens for.
+    window.dispatchEvent(
+      new CustomEvent('orca:save-and-close', { detail: { fileId: saveDialogFileId } })
+    )
+    setSaveDialogFileId(null)
+  }, [saveDialogFileId])
+
+  const handleSaveDialogDiscard = useCallback(() => {
+    if (!saveDialogFileId) return
+    markFileDirty(saveDialogFileId, false)
+    closeFile(saveDialogFileId)
+    setSaveDialogFileId(null)
+  }, [saveDialogFileId, closeFile, markFileDirty])
+
+  const handleSaveDialogCancel = useCallback(() => {
+    setSaveDialogFileId(null)
+  }, [])
 
   // Ensure activeTabId is valid (adjusting state during render)
   if (tabs.length > 0 && (!activeTabId || !tabs.find((t) => t.id === activeTabId))) {
@@ -62,19 +124,7 @@ export default function Terminal(): React.JSX.Element | null {
     createTab(activeWorktreeId)
   }, [workspaceSessionReady, activeWorktreeId, tabs.length, createTab])
 
-  // Animate tab bar height with grid transition
-  useEffect(() => {
-    const el = tabBarRef.current
-    if (!el) return
-
-    const showBar = tabs.length >= 2
-    if (showBar) {
-      el.style.gridTemplateRows = '1fr'
-    } else {
-      el.style.gridTemplateRows = '0fr'
-    }
-    prevTabCountRef.current = tabs.length
-  }, [tabs.length])
+  const totalTabs = tabs.length + openFiles.length
 
   const handleNewTab = useCallback(() => {
     if (!activeWorktreeId) return
@@ -139,6 +189,14 @@ export default function Terminal(): React.JSX.Element | null {
     [activeWorktreeId, closeTab]
   )
 
+  const handleActivateTab = useCallback(
+    (tabId: string) => {
+      setActiveTab(tabId)
+      setActiveTabType('terminal')
+    },
+    [setActiveTab, setActiveTabType]
+  )
+
   const handleTogglePaneExpand = useCallback(
     (tabId: string) => {
       setActiveTab(tabId)
@@ -168,30 +226,60 @@ export default function Terminal(): React.JSX.Element | null {
       // Cmd+W - close active tab
       if (e.metaKey && e.key === 'w' && !e.shiftKey && !e.repeat) {
         e.preventDefault()
-        const currentActiveTabId = useAppStore.getState().activeTabId
-        if (currentActiveTabId) {
-          handleCloseTab(currentActiveTabId)
+        const state = useAppStore.getState()
+        if (state.activeTabType === 'editor' && state.activeFileId) {
+          handleCloseFile(state.activeFileId)
+        } else if (state.activeTabId) {
+          handleCloseTab(state.activeTabId)
         }
         return
       }
 
       // Cmd+Shift+] and Cmd+Shift+[ - switch tabs
       if (e.metaKey && e.shiftKey && (e.key === ']' || e.key === '[') && !e.repeat) {
-        const currentTabs = useAppStore.getState().tabsByWorktree[activeWorktreeId] ?? []
-        if (currentTabs.length > 1) {
+        const state = useAppStore.getState()
+        const currentTerminalTabs = state.tabsByWorktree[activeWorktreeId] ?? []
+        const currentEditorFiles = state.openFiles
+
+        // Build unified tab list: terminal tabs then editor tabs
+        const allTabIds: { type: 'terminal' | 'editor'; id: string }[] = [
+          ...currentTerminalTabs.map((t) => ({ type: 'terminal' as const, id: t.id })),
+          ...currentEditorFiles.map((f) => ({ type: 'editor' as const, id: f.id }))
+        ]
+
+        if (allTabIds.length > 1) {
           e.preventDefault()
-          const currentId = useAppStore.getState().activeTabId
-          const idx = currentTabs.findIndex((t) => t.id === currentId)
+          const currentId =
+            state.activeTabType === 'editor' ? state.activeFileId : state.activeTabId
+          const idx = allTabIds.findIndex((t) => t.id === currentId)
           const dir = e.key === ']' ? 1 : -1
-          const next = currentTabs[(idx + dir + currentTabs.length) % currentTabs.length]
-          if (next) setActiveTab(next.id)
+          const next = allTabIds[(idx + dir + allTabIds.length) % allTabIds.length]
+          if (next.type === 'terminal') {
+            setActiveTab(next.id)
+            state.setActiveTabType('terminal')
+          } else {
+            state.setActiveFile(next.id)
+            state.setActiveTabType('editor')
+          }
         }
         return
       }
     }
     window.addEventListener('keydown', onKeyDown, { capture: true })
     return () => window.removeEventListener('keydown', onKeyDown, { capture: true })
-  }, [activeWorktreeId, handleNewTab, handleCloseTab, setActiveTab])
+  }, [activeWorktreeId, handleNewTab, handleCloseTab, handleCloseFile, setActiveTab])
+
+  // Warn on window close if there are unsaved editor files
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent): void => {
+      const dirtyFiles = useAppStore.getState().openFiles.filter((f) => f.isDirty)
+      if (dirtyFiles.length > 0) {
+        e.preventDefault()
+      }
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [])
 
   if (!activeWorktreeId) return null
 
@@ -201,14 +289,14 @@ export default function Terminal(): React.JSX.Element | null {
       <div
         ref={tabBarRef}
         className="grid transition-[grid-template-rows] duration-200 ease-in-out"
-        style={{ gridTemplateRows: tabs.length >= 2 ? '1fr' : '0fr' }}
+        style={{ gridTemplateRows: totalTabs >= 2 ? '1fr' : '0fr' }}
       >
         <div className="overflow-hidden">
           <TabBar
             tabs={tabs}
             activeTabId={activeTabId}
             worktreeId={activeWorktreeId}
-            onActivate={setActiveTab}
+            onActivate={handleActivateTab}
             onClose={handleCloseTab}
             onCloseOthers={handleCloseOthers}
             onCloseToRight={handleCloseTabsToRight}
@@ -218,12 +306,23 @@ export default function Terminal(): React.JSX.Element | null {
             onSetTabColor={setTabColor}
             expandedPaneByTabId={expandedPaneByTabId}
             onTogglePaneExpand={handleTogglePaneExpand}
+            editorFiles={openFiles}
+            activeFileId={activeFileId}
+            activeTabType={activeTabType}
+            onActivateFile={(fileId) => {
+              setActiveFile(fileId)
+              setActiveTabType('editor')
+            }}
+            onCloseFile={handleCloseFile}
+            onCloseAllFiles={closeAllFiles}
           />
         </div>
       </div>
 
-      {/* Terminal panes container */}
-      <div className="relative flex-1 min-h-0 overflow-hidden">
+      {/* Terminal panes container - hidden when editor tab active */}
+      <div
+        className={`relative flex-1 min-h-0 overflow-hidden ${activeTabType === 'editor' && openFiles.length > 0 ? 'hidden' : ''}`}
+      >
         {allWorktrees
           .filter((wt) => mountedWorktreeIdsRef.current.has(wt.id))
           .map((worktree) => {
@@ -250,6 +349,49 @@ export default function Terminal(): React.JSX.Element | null {
             )
           })}
       </div>
+
+      {/* Editor panel - shown when editor tab is active */}
+      {activeTabType === 'editor' && openFiles.length > 0 && (
+        <Suspense
+          fallback={
+            <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
+              Loading editor...
+            </div>
+          }
+        >
+          <EditorPanel />
+        </Suspense>
+      )}
+
+      {/* Save confirmation dialog */}
+      <Dialog
+        open={saveDialogFileId !== null}
+        onOpenChange={(open) => {
+          if (!open) handleSaveDialogCancel()
+        }}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-sm">Unsaved Changes</DialogTitle>
+            <DialogDescription className="text-xs">
+              {saveDialogFile
+                ? `"${saveDialogFile.relativePath.split('/').pop()}" has unsaved changes. Do you want to save before closing?`
+                : 'This file has unsaved changes.'}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button type="button" variant="outline" size="sm" onClick={handleSaveDialogCancel}>
+              Cancel
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={handleSaveDialogDiscard}>
+              Don&apos;t Save
+            </Button>
+            <Button type="button" size="sm" onClick={handleSaveDialogSave}>
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

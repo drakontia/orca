@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { Toaster } from 'sonner'
-import { Minimize2, PanelLeft } from 'lucide-react'
+import { Minimize2, PanelLeft, PanelRight } from 'lucide-react'
 import { TOGGLE_TERMINAL_PANE_EXPAND_EVENT } from '@/constants/terminal'
 import { syncZoomCSSVar } from '@/lib/ui-zoom'
 import { useAppStore } from './store'
@@ -9,6 +9,7 @@ import Sidebar from './components/Sidebar'
 import Terminal from './components/Terminal'
 import Landing from './components/Landing'
 import Settings from './components/Settings'
+import RightSidebar from './components/right-sidebar'
 
 function App(): React.JSX.Element {
   const toggleSidebar = useAppStore((s) => s.toggleSidebar)
@@ -33,6 +34,13 @@ function App(): React.JSX.Element {
   const groupBy = useAppStore((s) => s.groupBy)
   const sortBy = useAppStore((s) => s.sortBy)
   const persistedUIReady = useAppStore((s) => s.persistedUIReady)
+
+  // Right sidebar + editor state
+  const toggleRightSidebar = useAppStore((s) => s.toggleRightSidebar)
+  const rightSidebarOpen = useAppStore((s) => s.rightSidebarOpen)
+  const rightSidebarWidth = useAppStore((s) => s.rightSidebarWidth)
+  const setRightSidebarOpen = useAppStore((s) => s.setRightSidebarOpen)
+  const setRightSidebarTab = useAppStore((s) => s.setRightSidebarTab)
 
   // Subscribe to IPC push events
   useIpcEvents()
@@ -61,6 +69,7 @@ function App(): React.JSX.Element {
             lastActiveRepoId: null,
             lastActiveWorktreeId: null,
             sidebarWidth: 280,
+            rightSidebarWidth: 350,
             groupBy: 'none',
             sortBy: 'name',
             uiZoomLevel: 0
@@ -119,13 +128,14 @@ function App(): React.JSX.Element {
     const timer = window.setTimeout(() => {
       void window.api.ui.set({
         sidebarWidth,
+        rightSidebarWidth,
         groupBy,
         sortBy
       })
     }, 150)
 
     return () => window.clearTimeout(timer)
-  }, [persistedUIReady, sidebarWidth, groupBy, sortBy])
+  }, [persistedUIReady, sidebarWidth, rightSidebarWidth, groupBy, sortBy])
 
   // Apply theme to document
   useEffect(() => {
@@ -179,16 +189,36 @@ function App(): React.JSX.Element {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent): void => {
       if (e.repeat) return
-      if (!e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return
-      if (e.key.toLowerCase() !== 'n') return
-      if (repos.length === 0) return
-      e.preventDefault()
-      openModal('create-worktree')
+      if (!e.metaKey) return
+
+      // Cmd+N — create worktree
+      if (!e.ctrlKey && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'n') {
+        if (repos.length === 0) return
+        e.preventDefault()
+        openModal('create-worktree')
+        return
+      }
+
+      // Cmd+Shift+E — toggle right sidebar / explorer tab
+      if (e.shiftKey && !e.ctrlKey && !e.altKey && e.key.toLowerCase() === 'e') {
+        e.preventDefault()
+        setRightSidebarTab('explorer')
+        setRightSidebarOpen(true)
+        return
+      }
+
+      // Cmd+Shift+G — toggle right sidebar / source control tab
+      if (e.shiftKey && !e.ctrlKey && !e.altKey && e.key.toLowerCase() === 'g') {
+        e.preventDefault()
+        setRightSidebarTab('source-control')
+        setRightSidebarOpen(true)
+        return
+      }
     }
 
     window.addEventListener('keydown', onKeyDown, { capture: true })
     return () => window.removeEventListener('keydown', onKeyDown, { capture: true })
-  }, [openModal, repos.length])
+  }, [openModal, repos.length, setRightSidebarTab, setRightSidebarOpen])
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden">
@@ -216,6 +246,16 @@ function App(): React.JSX.Element {
             <Minimize2 size={14} />
           </button>
         )}
+        <button
+          className="sidebar-toggle"
+          onClick={toggleRightSidebar}
+          title="Toggle right sidebar"
+          aria-label="Toggle right sidebar"
+          disabled={!showSidebar}
+          style={{ marginRight: 12 }}
+        >
+          <PanelRight size={16} />
+        </button>
       </div>
       <div className="flex flex-row flex-1 min-h-0 overflow-hidden">
         {showSidebar ? <Sidebar /> : null}
@@ -233,6 +273,7 @@ function App(): React.JSX.Element {
           )}
           {activeView === 'settings' ? <Settings /> : !activeWorktreeId ? <Landing /> : null}
         </div>
+        {showSidebar && rightSidebarOpen ? <RightSidebar /> : null}
       </div>
       <Toaster
         theme="system"
