@@ -187,7 +187,7 @@ export default function FileExplorer(): React.JSX.Element {
   }
 
   return (
-    <div ref={scrollRef} className="flex-1 overflow-auto scrollbar-sleek">
+    <div ref={scrollRef} className="flex-1 overflow-auto scrollbar-sleek py-2">
       <div className="relative w-full" style={{ height: `${virtualizer.getTotalSize()}px` }}>
         {virtualizer.getVirtualItems().map((vItem) => {
           const node = flatRows[vItem.index]

@@ -19,7 +19,7 @@ export function HookEditor({
     repo.hookSettings?.mode === 'auto' && yamlScript ? 'yaml' : uiScript.trim() ? 'ui' : 'none'
 
   return (
-    <div className="space-y-3 rounded-2xl border bg-background/80 p-4 shadow-sm">
+    <div className="space-y-3 rounded-2xl border border-border/50 bg-background/80 p-4 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h5 className="text-sm font-semibold capitalize">{hookName}</h5>
@@ -36,7 +36,7 @@ export function HookEditor({
               ? 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
               : effectiveSource === 'ui'
                 ? 'border border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300'
-                : 'border bg-muted text-muted-foreground'
+                : 'border border-border/50 bg-muted text-muted-foreground'
           }`}
         >
           {effectiveSource === 'yaml'
@@ -81,7 +81,7 @@ export function HookEditor({
               : 'echo "Cleaning up before archive"'
           }
           spellCheck={false}
-          className="min-h-[12rem] w-full resize-y rounded-xl border bg-background px-3 py-3 font-mono text-[12px] leading-5 outline-none transition-colors placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
+          className="min-h-[12rem] w-full resize-y rounded-xl border border-border/50 bg-background px-3 py-3 font-mono text-[12px] leading-5 outline-none transition-colors placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
         />
       </div>
     </div>

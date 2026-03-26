@@ -266,9 +266,9 @@ const WorktreeCard = React.memo(function WorktreeCard({
                 </Tooltip>
               )}
               {pr && (
-                <div
+                <span
                   className={cn(
-                    'text-[9px] font-semibold uppercase tracking-wider',
+                    'text-[9px] font-bold uppercase tracking-wider h-3.5 flex items-center',
                     pr.state === 'merged' && 'text-purple-500/80',
                     pr.state === 'open' && 'text-emerald-500/80',
                     pr.state === 'closed' && 'text-muted-foreground/60',
@@ -276,7 +276,7 @@ const WorktreeCard = React.memo(function WorktreeCard({
                   )}
                 >
                   {prStateLabel(pr.state)}
-                </div>
+                </span>
               )}
             </div>
           </div>
@@ -363,7 +363,18 @@ const WorktreeCard = React.memo(function WorktreeCard({
                 <HoverCard openDelay={300}>
                   <HoverCardTrigger asChild>
                     <div className="flex items-center gap-1.5 min-w-0 cursor-default group/meta -mx-1.5 px-1.5 py-0.5 rounded transition-colors hover:bg-background/40">
-                      <PullRequestIcon className="size-3 shrink-0 text-muted-foreground opacity-60" />
+                      <PullRequestIcon
+                        className={cn(
+                          'size-3 shrink-0',
+                          pr.state === 'merged' && 'text-purple-500/80',
+                          pr.state === 'open' && 'text-emerald-500/80',
+                          pr.state === 'closed' && 'text-muted-foreground/60',
+                          pr.state === 'draft' && 'text-muted-foreground/50',
+                          (!pr.state ||
+                            !['merged', 'open', 'closed', 'draft'].includes(pr.state)) &&
+                            'text-muted-foreground opacity-60'
+                        )}
+                      />
                       <div className="flex-1 min-w-0 flex items-center gap-1.5 text-[11.5px] leading-none">
                         <a
                           href={pr.url}

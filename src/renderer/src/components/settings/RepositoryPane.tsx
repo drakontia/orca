@@ -155,7 +155,7 @@ export function RepositoryPane({
         </div>
 
         <div className="space-y-2">
-          <Label className="text-sm">Display Name</Label>
+          <Label>Display Name</Label>
           <Input
             value={repo.displayName}
             onChange={(e) =>
@@ -168,7 +168,7 @@ export function RepositoryPane({
         </div>
 
         <div className="space-y-2">
-          <Label className="text-sm">Badge Color</Label>
+          <Label>Badge Color</Label>
           <div className="flex flex-wrap gap-2">
             {REPO_COLORS.map((color) => (
               <button
@@ -187,7 +187,7 @@ export function RepositoryPane({
         </div>
 
         <div className="space-y-3">
-          <Label className="text-sm">Default Worktree Base</Label>
+          <Label>Default Worktree Base</Label>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <div className="text-sm font-medium text-foreground">{effectiveBaseRef}</div>
@@ -229,7 +229,7 @@ export function RepositoryPane({
 
           {!isSearchingBaseRefs && baseRefQuery.trim().length >= 2 ? (
             baseRefResults.length > 0 ? (
-              <ScrollArea className="h-48 rounded-md border">
+              <ScrollArea className="h-48 rounded-md border border-border/50">
                 <div className="p-1">
                   {baseRefResults.map((ref) => (
                     <button
@@ -273,7 +273,7 @@ export function RepositoryPane({
           </p>
         </div>
 
-        <div className="flex w-fit gap-1 rounded-xl border p-1">
+        <div className="flex w-fit gap-1 rounded-xl border border-border/50 p-1">
           {(['auto', 'override'] as const).map((mode) => (
             <button
               key={mode}

@@ -21,7 +21,7 @@ export function AppearancePane({
           <p className="text-xs text-muted-foreground">Choose how Orca looks in the app window.</p>
         </div>
 
-        <div className="flex w-fit gap-1 rounded-md border p-1">
+        <div className="flex w-fit gap-1 rounded-md border border-border/50 p-1">
           {(['system', 'dark', 'light'] as const).map((option) => (
             <button
               key={option}

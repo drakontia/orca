@@ -62,7 +62,7 @@ export function TerminalPane({
         </div>
 
         <div className="space-y-2">
-          <Label className="text-sm">Font Size</Label>
+          <Label>Font Size</Label>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
@@ -104,7 +104,7 @@ export function TerminalPane({
         </div>
 
         <div className="space-y-2">
-          <Label className="text-sm">Font Family</Label>
+          <Label>Font Family</Label>
           <FontAutocomplete
             value={settings.terminalFontFamily}
             suggestions={terminalFontSuggestions}
@@ -125,8 +125,8 @@ export function TerminalPane({
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label className="text-sm">Cursor Shape</Label>
-            <div className="flex w-fit gap-1 rounded-md border p-1">
+            <Label>Cursor Shape</Label>
+            <div className="flex w-fit gap-1 rounded-md border border-border/50 p-1">
               {(['bar', 'block', 'underline'] as const).map((option) => (
                 <button
                   key={option}
@@ -145,7 +145,7 @@ export function TerminalPane({
 
           <div className="flex items-center justify-between gap-4 px-1 py-2">
             <div className="space-y-0.5">
-              <Label className="text-sm">Blinking Cursor</Label>
+              <Label>Blinking Cursor</Label>
               <p className="text-xs text-muted-foreground">
                 Uses the blinking variant of the selected cursor shape.
               </p>
@@ -257,7 +257,7 @@ export function TerminalPane({
       <section className="space-y-4">
         <div className="flex items-center justify-between gap-4 px-1 py-2">
           <div className="space-y-0.5">
-            <Label className="text-sm">Use Separate Theme In Light Mode</Label>
+            <Label>Use Separate Theme In Light Mode</Label>
             <p className="text-xs text-muted-foreground">
               When disabled, light mode reuses the dark terminal theme.
             </p>
@@ -334,7 +334,7 @@ export function TerminalPane({
         </div>
 
         <div className="space-y-3">
-          <Label className="text-sm">Scrollback Size</Label>
+          <Label>Scrollback Size</Label>
           <ToggleGroup
             type="single"
             value={scrollbackToggleValue}

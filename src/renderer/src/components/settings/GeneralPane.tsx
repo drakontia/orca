@@ -43,7 +43,7 @@ export function GeneralPane({
         </div>
 
         <div className="space-y-2">
-          <Label className="text-sm">Workspace Directory</Label>
+          <Label>Workspace Directory</Label>
           <div className="flex gap-2">
             <Input
               value={settings.workspaceDir}
@@ -67,7 +67,7 @@ export function GeneralPane({
 
         <div className="flex items-center justify-between gap-4 px-1 py-2">
           <div className="space-y-0.5">
-            <Label className="text-sm">Nest Workspaces</Label>
+            <Label>Nest Workspaces</Label>
             <p className="text-xs text-muted-foreground">
               Create worktrees inside a repo-named subfolder.
             </p>
@@ -103,7 +103,7 @@ export function GeneralPane({
           </p>
         </div>
 
-        <div className="flex w-fit gap-1 rounded-md border p-1">
+        <div className="flex w-fit gap-1 rounded-md border border-border/50 p-1">
           {(['git-username', 'custom', 'none'] as const).map((option) => (
             <button
               key={option}

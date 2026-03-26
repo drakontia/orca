@@ -306,17 +306,15 @@ const WorktreeList = React.memo(function WorktreeList() {
               >
                 <button
                   className={cn(
-                    'group mb-1 mt-2 flex h-7 w-full items-center gap-1.5 rounded-lg border border-transparent px-2 text-left transition-all',
-                    row.repo
-                      ? 'overflow-hidden hover:bg-accent/50'
-                      : cn(row.tone, 'hover:brightness-110')
+                    'group mb-1 mt-2 flex h-7 w-full items-center gap-1.5 px-1.5 text-left transition-all',
+                    row.repo ? 'overflow-hidden' : row.tone
                   )}
                   onClick={() => toggleGroup(row.key)}
                 >
                   <div
                     className={cn(
                       'flex size-4 shrink-0 items-center justify-center rounded-[4px]',
-                      row.repo ? 'text-foreground' : 'bg-black/5 dark:bg-white/10'
+                      row.repo ? 'text-foreground' : ''
                     )}
                     style={row.repo ? { color: row.repo.badgeColor } : undefined}
                   >

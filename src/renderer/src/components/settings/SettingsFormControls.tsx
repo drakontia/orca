@@ -57,7 +57,7 @@ export function ThemePicker({
   return (
     <div className="space-y-3">
       <div className="space-y-1">
-        <Label className="text-sm">{label}</Label>
+        <Label>{label}</Label>
         <p className="text-xs text-muted-foreground">{description}</p>
       </div>
       <Input
@@ -65,8 +65,8 @@ export function ThemePicker({
         onChange={(e) => onQueryChange(e.target.value)}
         placeholder="Search builtin themes"
       />
-      <div className="rounded-lg border">
-        <div className="flex items-center justify-between border-b px-3 py-2 text-xs text-muted-foreground">
+      <div className="rounded-lg border border-border/50">
+        <div className="flex items-center justify-between border-b border-border/50 px-3 py-2 text-xs text-muted-foreground">
           <span>Selected: {selectedTheme}</span>
           <span>
             Showing {filteredThemes.length}
@@ -117,7 +117,7 @@ export function ColorField({
   return (
     <div className="space-y-2">
       <div className="space-y-1">
-        <Label className="text-sm">{label}</Label>
+        <Label>{label}</Label>
         <p className="text-xs text-muted-foreground">{description}</p>
       </div>
       <div className="flex items-center gap-3">
@@ -179,7 +179,7 @@ export function NumberField({
   return (
     <div className="space-y-2">
       <div className="space-y-1">
-        <Label className="text-sm">{label}</Label>
+        <Label>{label}</Label>
         <p className="text-xs text-muted-foreground">{description}</p>
       </div>
       <div className="flex items-center gap-3">
@@ -300,7 +300,7 @@ export function FontAutocomplete({
       </div>
 
       {open ? (
-        <div className="absolute top-full z-20 mt-2 w-full overflow-hidden rounded-md border bg-popover shadow-md">
+        <div className="absolute top-full z-20 mt-2 w-full overflow-hidden rounded-md border border-border/50 bg-popover shadow-md">
           <ScrollArea className="max-h-64">
             <div className="p-1">
               {filteredSuggestions.length > 0 ? (

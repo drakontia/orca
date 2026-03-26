@@ -30,12 +30,12 @@ export function TerminalThemePreview({
 
   return (
     <Card className="gap-4 overflow-hidden py-0">
-      <CardHeader className="gap-1 border-b py-4">
+      <CardHeader className="gap-1 border-b border-border/50 py-4">
         <CardTitle className="text-sm">{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4 px-4 pb-4">
-        <div className="flex items-center justify-between rounded-md border bg-muted/40 px-3 py-2 text-xs">
+        <div className="flex items-center justify-between rounded-md border border-border/50 bg-muted/40 px-3 py-2 text-xs">
           <div className="min-w-0">
             <p className="font-medium text-foreground">{appearance.themeName}</p>
             <p className="text-muted-foreground">
@@ -47,14 +47,14 @@ export function TerminalThemePreview({
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground">Divider</span>
             <span
-              className="size-4 rounded-sm border"
+              className="size-4 rounded-sm border border-border/50"
               style={{ backgroundColor: appearance.dividerColor }}
             />
           </div>
         </div>
 
         <div
-          className="overflow-hidden rounded-lg border"
+          className="overflow-hidden rounded-lg border border-border/50"
           style={{ backgroundColor: appearance.dividerColor }}
         >
           <div className="flex min-h-[220px]">
