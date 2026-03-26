@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, autoUpdater as nativeUpdater } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import { is } from '@electron-toolkit/utils'
 import type { UpdateStatus } from '../shared/types'
@@ -10,6 +10,8 @@ let userInitiatedCheck = false
 let onBeforeQuitCleanup: (() => void) | null = null
 let autoUpdaterInitialized = false
 let availableVersion: string | null = null
+/** Whether Squirrel.Mac has finished downloading the update from the localhost proxy. */
+let squirrelReady = false
 
 function sendStatus(status: UpdateStatus): void {
   currentStatus = status
@@ -50,20 +52,20 @@ export function checkForUpdatesFromMenu(): void {
 }
 
 export function quitAndInstall(): void {
-  // autoUpdater.quitAndInstall() calls app.exit() which bypasses the normal
-  // before-quit lifecycle. Run cleanup that would normally happen there.
   killAllPty()
   onBeforeQuitCleanup?.()
 
-  const windows = BrowserWindow.getAllWindows()
-  for (const win of windows) {
+  // Remove close listeners so windows don't block the quit, but do NOT
+  // destroy them yet. On macOS, MacUpdater.quitAndInstall() delegates to
+  // Squirrel.Mac's nativeUpdater.quitAndInstall() which handles quitting
+  // the app. If we destroy windows before Squirrel is ready, the app ends
+  // up with zero windows and the dock "activate" handler re-opens the old
+  // version instead of actually updating.
+  for (const win of BrowserWindow.getAllWindows()) {
     win.removeAllListeners('close')
-    win.destroy()
   }
 
-  setImmediate(() => {
-    autoUpdater.quitAndInstall(false, true)
-  })
+  autoUpdater.quitAndInstall(false, true)
 }
 
 export function setupAutoUpdater(
@@ -91,6 +93,20 @@ export function setupAutoUpdater(
     return
   }
   autoUpdaterInitialized = true
+
+  // On macOS, electron-updater's MacUpdater downloads the ZIP from GitHub,
+  // then serves it to Squirrel.Mac via a localhost proxy. The electron-updater
+  // 'update-downloaded' event fires BEFORE Squirrel finishes its download.
+  // Track Squirrel readiness so we don't show "ready to install" prematurely.
+  if (process.platform === 'darwin') {
+    nativeUpdater.on('update-downloaded', () => {
+      squirrelReady = true
+      // If we were holding the 'downloaded' status, send it now
+      if (availableVersion && availableVersion !== app.getVersion()) {
+        sendStatus({ state: 'downloaded', version: availableVersion })
+      }
+    })
+  }
 
   autoUpdater.on('checking-for-update', () => {
     sendStatus({ state: 'checking', userInitiated: userInitiatedCheck || undefined })
@@ -130,6 +146,16 @@ export function setupAutoUpdater(
       sendStatus({ state: 'not-available' })
       return
     }
+    // On macOS, defer the 'downloaded' status until Squirrel.Mac has finished
+    // processing the update via the localhost proxy. On other platforms,
+    // the update is ready immediately after electron-updater downloads it.
+    if (process.platform === 'darwin' && !squirrelReady) {
+      // Squirrel is still processing — show download at 100% while waiting.
+      // The nativeUpdater 'update-downloaded' handler above will send the
+      // real 'downloaded' status when Squirrel finishes.
+      sendStatus({ state: 'downloading', percent: 100, version: info.version })
+      return
+    }
     sendStatus({ state: 'downloaded', version: info.version })
   })
 
@@ -153,6 +179,7 @@ export function downloadUpdate(): void {
   if (currentStatus.state !== 'available') {
     return
   }
+  squirrelReady = false
   autoUpdater.downloadUpdate().catch((err) => {
     sendStatus({ state: 'error', message: String(err?.message ?? err) })
   })
