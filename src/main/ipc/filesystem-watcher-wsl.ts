@@ -57,10 +57,7 @@ function shouldIgnore(name: string, ignoreDirs: string[]): boolean {
  * Take a snapshot of the root directory and one level of subdirectories.
  * Returns a map of dirPath → set of entry names.
  */
-async function takeSnapshot(
-  rootPath: string,
-  ignoreDirs: string[]
-): Promise<DirSnapshot> {
+async function takeSnapshot(rootPath: string, ignoreDirs: string[]): Promise<DirSnapshot> {
   const snapshot: DirSnapshot = new Map()
 
   const rootEntries = await readDirSafe(rootPath)
@@ -90,10 +87,7 @@ async function takeSnapshot(
 /**
  * Diff two snapshots and return synthetic watcher events.
  */
-function diffSnapshots(
-  prev: DirSnapshot,
-  next: DirSnapshot
-): WatcherEvent[] {
+function diffSnapshots(prev: DirSnapshot, next: DirSnapshot): WatcherEvent[] {
   const events: WatcherEvent[] = []
 
   for (const [dirPath, nextEntries] of next) {

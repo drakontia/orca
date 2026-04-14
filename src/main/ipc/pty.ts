@@ -3,7 +3,7 @@ main-process module so spawn-time environment scoping, lifecycle cleanup,
 foreground-process inspection, and renderer IPC stay behind a single audited
 boundary. Splitting it by line count would scatter tightly coupled terminal
 process behavior across files without a cleaner ownership seam. */
-import { basename } from 'path'
+import { basename, win32 as pathWin32 } from 'path'
 import {
   existsSync,
   accessSync,
@@ -468,7 +468,36 @@ export function registerPtyHandlers(
         validationCwd = cwd
       } else if (process.platform === 'win32') {
         shellPath = process.env.COMSPEC || 'powershell.exe'
-        shellArgs = []
+        // Why: use path.win32.basename so backslash-separated Windows paths
+        // are parsed correctly even when tests mock process.platform on Linux CI.
+        const shellBasename = pathWin32.basename(shellPath).toLowerCase()
+        // Why: On CJK Windows (Chinese, Japanese, Korean), the console code page
+        // defaults to the system ANSI code page (e.g. 936/GBK for Chinese).
+        // ConPTY encodes its output pipe using this code page, but node-pty
+        // always decodes as UTF-8. Without switching to code page 65001 (UTF-8),
+        // multi-byte CJK characters are garbled because the GBK/Shift-JIS/EUC-KR
+        // byte sequences are misinterpreted as UTF-8. This is especially visible
+        // with split-screen terminals where multiple ConPTY instances amplify the
+        // issue. Setting the code page at shell startup ensures all subsequent
+        // output — including from child processes — uses UTF-8.
+        if (shellBasename === 'cmd.exe') {
+          shellArgs = ['/K', 'chcp 65001 > nul']
+        } else if (shellBasename === 'powershell.exe' || shellBasename === 'pwsh.exe') {
+          // Why: `-NoExit -Command` alone skips the user's $PROFILE, breaking
+          // custom prompts (oh-my-posh, starship), aliases, and PSReadLine
+          // configuration. Dot-sourcing $PROFILE first restores the normal
+          // startup experience. The try/catch ensures a broken profile (e.g.
+          // terminating errors from strict-mode violations or failing module
+          // imports) cannot prevent the encoding commands from executing —
+          // otherwise the CJK fix would silently fail for those users.
+          shellArgs = [
+            '-NoExit',
+            '-Command',
+            'try { . $PROFILE } catch {}; [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; [Console]::InputEncoding = [System.Text.Encoding]::UTF8'
+          ]
+        } else {
+          shellArgs = []
+        }
         effectiveCwd = cwd
         validationCwd = cwd
       } else {
@@ -537,6 +566,15 @@ export function registerPtyHandlers(
       // We default LANG to en_US.UTF-8 but let the inherited or caller-provided
       // env override it so user locale preferences are respected.
       spawnEnv.LANG ??= 'en_US.UTF-8'
+
+      // Why: On Windows, LANG alone does not control the console code page.
+      // Programs like Python and Node.js check their own encoding env vars
+      // independently. PYTHONUTF8=1 makes Python use UTF-8 for stdio regardless
+      // of the Windows console code page, preventing garbled CJK output from
+      // Python scripts run inside the terminal.
+      if (process.platform === 'win32') {
+        spawnEnv.PYTHONUTF8 ??= '1'
+      }
 
       let ptyProcess: pty.IPty | undefined
       let primaryError: string | null = null
