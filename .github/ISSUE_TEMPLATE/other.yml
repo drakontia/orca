@@ -2,19 +2,10 @@ name: Other
 description: Report another Orca issue type
 title: "[Other]: "
 body:
-  - type: input
-    id: summary
-    attributes:
-      label: Summary
-      description: Briefly describe the issue
-      placeholder: Docs are missing setup steps for ...
-    validations:
-      required: true
-
   - type: textarea
     id: details
     attributes:
       label: Details
-      description: Share the context, request, or issue
+      description: Share the context, request, or issue. Include a short summary here too.
     validations:
       required: true

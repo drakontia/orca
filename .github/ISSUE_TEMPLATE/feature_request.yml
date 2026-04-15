@@ -9,20 +9,11 @@ body:
       value: |
         Use this form for new features or workflow improvements.
 
-  - type: input
-    id: summary
-    attributes:
-      label: Summary
-      description: Short description of the feature request
-      placeholder: Add a way to pin frequently used repositories
-    validations:
-      required: true
-
   - type: textarea
     id: problem
     attributes:
       label: Problem or use case
-      description: What are you trying to do, and what is missing today?
+      description: What are you trying to do, and what is missing today? Include a short summary here too.
       placeholder: It is hard to switch between the same few repositories throughout the day.
     validations:
       required: true
