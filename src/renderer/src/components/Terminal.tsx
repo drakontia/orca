@@ -26,14 +26,14 @@ import { isUpdaterQuitAndInstallInProgress } from '@/lib/updater-beforeunload'
 import EditorAutosaveController from './editor/EditorAutosaveController'
 import BrowserPane, { destroyPersistentWebview } from './browser-pane/BrowserPane'
 import { reconcileTabOrder } from './tab-bar/reconcile-order'
-import TabGroupWorkspaceHost from './tab-group/TabGroupWorkspaceHost'
+import TabGroupSplitLayout from './tab-group/TabGroupSplitLayout'
 import { shouldAutoCreateInitialTerminal } from './terminal/initial-terminal'
 import CodexRestartChip from './CodexRestartChip'
 
 const EditorPanel = lazy(() => import('./editor/EditorPanel'))
-// Why: the split-group ownership path lands before the rollout switch so we
-// can exercise the full renderer/model integration in code review without
-// exposing partial behavior to users. PR6 flips this to true.
+// Why: keep the split-group renderer path dark until dedicated Playwright
+// coverage lands. This branch keeps the implementation and correctness fixes,
+// but the user-visible rollout stays on the legacy workspace path by default.
 const ENABLE_SPLIT_GROUPS = false
 
 function Terminal(): React.JSX.Element | null {
@@ -65,6 +65,10 @@ function Terminal(): React.JSX.Element | null {
   const createBrowserTab = useAppStore((s) => s.createBrowserTab)
   const closeBrowserTab = useAppStore((s) => s.closeBrowserTab)
   const setActiveBrowserTab = useAppStore((s) => s.setActiveBrowserTab)
+  const groupsByWorktree = useAppStore((s) => s.groupsByWorktree)
+  const layoutByWorktree = useAppStore((s) => s.layoutByWorktree)
+  const activeGroupIdByWorktree = useAppStore((s) => s.activeGroupIdByWorktree)
+  const ensureWorktreeRootGroup = useAppStore((s) => s.ensureWorktreeRootGroup)
   const reconcileWorktreeTabModel = useAppStore((s) => s.reconcileWorktreeTabModel)
 
   const markFileDirty = useAppStore((s) => s.markFileDirty)
@@ -83,6 +87,16 @@ function Terminal(): React.JSX.Element | null {
     setTitlebarTabsTarget(document.getElementById('titlebar-tabs'))
   }, [])
 
+  useEffect(() => {
+    if (!activeWorktreeId) {
+      return
+    }
+    // Why: split-group ownership is now the real path. Ensure the active
+    // worktree always has a root group so terminal-first fallback can attach
+    // fresh tabs to a concrete owner even before any explicit split exists.
+    ensureWorktreeRootGroup(activeWorktreeId)
+  }, [activeWorktreeId, ensureWorktreeRootGroup])
+
   // Filter editor files to only show those belonging to the active worktree
   const worktreeFiles = activeWorktreeId
     ? openFiles.filter((f) => f.worktreeId === activeWorktreeId)
@@ -90,6 +104,38 @@ function Terminal(): React.JSX.Element | null {
   const worktreeBrowserTabs = activeWorktreeId
     ? (browserTabsByWorktree[activeWorktreeId] ?? [])
     : []
+  const getEffectiveLayoutForWorktree = useCallback(
+    (worktreeId: string) => {
+      const layout = layoutByWorktree[worktreeId]
+      if (layout) {
+        return layout
+      }
+      const groups = groupsByWorktree[worktreeId] ?? []
+      const fallbackGroupId = activeGroupIdByWorktree[worktreeId] ?? groups[0]?.id ?? null
+      if (!fallbackGroupId) {
+        return undefined
+      }
+      return { type: 'leaf', groupId: fallbackGroupId } as const
+    },
+    [activeGroupIdByWorktree, groupsByWorktree, layoutByWorktree]
+  )
+  const effectiveActiveLayout = activeWorktreeId
+    ? ENABLE_SPLIT_GROUPS
+      ? getEffectiveLayoutForWorktree(activeWorktreeId)
+      : undefined
+    : undefined
+  const activeWorktree = activeWorktreeId
+    ? (allWorktrees.find((worktree) => worktree.id === activeWorktreeId) ?? null)
+    : null
+  const activeTerminalTab = tabs.find((tab) => tab.id === activeTabId) ?? null
+  const activeEditorFile = worktreeFiles.find((file) => file.id === activeFileId) ?? null
+  const activeBrowserTab = worktreeBrowserTabs.find((tab) => tab.id === activeBrowserTabId) ?? null
+  const activeSurfaceLabel =
+    activeTabType === 'browser'
+      ? (activeBrowserTab?.title ?? activeBrowserTab?.url ?? 'Browser')
+      : activeTabType === 'editor'
+        ? (activeEditorFile?.relativePath ?? activeEditorFile?.filePath ?? 'Editor')
+        : (activeTerminalTab?.customTitle ?? activeTerminalTab?.title ?? 'Terminal')
   const activeWorktreeBrowserTabIdsKey = activeWorktreeId
     ? (browserTabsByWorktree[activeWorktreeId] ?? []).map((tab) => tab.id).join(',')
     : ''
@@ -149,10 +195,19 @@ function Terminal(): React.JSX.Element | null {
     setSaveDialogFileId(null)
   }, [])
 
-  // Ensure activeTabId is valid (adjusting state during render)
-  if (tabs.length > 0 && (!activeTabId || !tabs.find((t) => t.id === activeTabId))) {
+  useEffect(() => {
+    if (tabs.length === 0) {
+      return
+    }
+    if (activeTabId && tabs.some((tab) => tab.id === activeTabId)) {
+      return
+    }
+    // Why: mutating Zustand during render trips React's "Cannot update a
+    // component while rendering a different component" warning. Keep the
+    // legacy active-tab repair, but run it as an effect after the render that
+    // observed the stale activeTabId.
     setActiveTab(tabs[0].id)
-  }
+  }, [activeTabId, setActiveTab, tabs])
 
   // Track which worktrees have been activated during this app session.
   // Only mount TerminalPanes for visited worktrees to prevent mass PTY
@@ -182,12 +237,16 @@ function Terminal(): React.JSX.Element | null {
       return
     }
 
+    // Why: this fallback exists to give a newly activated/restored worktree a
+    // focusable surface when the reconciled tab model has nothing renderable.
+    // Re-running it on ordinary tab-count changes would recreate a terminal
+    // immediately after the user intentionally closed the last visible one.
     const { renderableTabCount } = reconcileWorktreeTabModel(activeWorktreeId)
     if (!shouldAutoCreateInitialTerminal(renderableTabCount)) {
       return
     }
     createTab(activeWorktreeId)
-  }, [workspaceSessionReady, activeWorktreeId, tabs.length, createTab, reconcileWorktreeTabModel])
+  }, [workspaceSessionReady, activeWorktreeId, createTab, reconcileWorktreeTabModel])
 
   const handleNewTab = useCallback(() => {
     if (!activeWorktreeId) {
@@ -759,7 +818,7 @@ function Terminal(): React.JSX.Element | null {
           inline like VS Code. The old titlebar portal stays only as a fallback
           before the root-group layout has been established. */}
       {activeWorktreeId &&
-        !ENABLE_SPLIT_GROUPS &&
+        !effectiveActiveLayout &&
         titlebarTabsTarget &&
         createPortal(
           <TabBar
@@ -797,14 +856,57 @@ function Terminal(): React.JSX.Element | null {
           titlebarTabsTarget
         )}
 
-      {activeWorktreeId && ENABLE_SPLIT_GROUPS && titlebarTabsTarget ? (
-        <TabGroupWorkspaceHost
-          activeView={activeView}
-          activeWorktreeId={activeWorktreeId}
-          mountedWorktreeIds={[...mountedWorktreeIdsRef.current]}
-          titlebarTabsTarget={titlebarTabsTarget}
-        />
-      ) : (
+      {activeWorktreeId &&
+        effectiveActiveLayout &&
+        titlebarTabsTarget &&
+        createPortal(
+          <div className="flex h-full min-w-0 items-center px-3 text-xs text-muted-foreground">
+            {/* Why: split layouts can show several independent tab rows, so the
+                titlebar cannot host the real tabs without collapsing multiple
+                groups into one shared surface. A lightweight summary still uses
+                that otherwise empty strip and keeps the window chrome balanced. */}
+            <span className="truncate font-medium text-foreground/80">
+              {activeWorktree?.displayName ?? 'Workspace'}
+            </span>
+            <span className="px-2 text-border">/</span>
+            <span className="truncate">{activeSurfaceLabel}</span>
+          </div>,
+          titlebarTabsTarget
+        )}
+
+      {effectiveActiveLayout ? (
+        <div className="relative flex flex-1 min-w-0 min-h-0 overflow-hidden">
+          {/* Why: each mounted worktree surface is absolutely positioned so we
+              can preserve hidden trees without reflowing the active one. Keep
+              a relative anchor here so those panes size to the workspace body
+              rather than some outer ancestor when split groups are enabled. */}
+          {allWorktrees
+            .filter((wt) => mountedWorktreeIdsRef.current.has(wt.id))
+            .map((worktree) => {
+              const layout = getEffectiveLayoutForWorktree(worktree.id)
+              if (!layout) {
+                return null
+              }
+              const isVisible = activeView !== 'settings' && worktree.id === activeWorktreeId
+              return (
+                <div
+                  key={`tab-groups-${worktree.id}`}
+                  className={isVisible ? 'absolute inset-0 flex' : 'absolute inset-0 hidden'}
+                  aria-hidden={!isVisible}
+                >
+                  <CodexRestartChip worktreeId={worktree.id} />
+                  <TabGroupSplitLayout
+                    layout={layout}
+                    worktreeId={worktree.id}
+                    focusedGroupId={activeGroupIdByWorktree[worktree.id]}
+                  />
+                </div>
+              )
+            })}
+        </div>
+      ) : null}
+
+      {!effectiveActiveLayout && (
         <>
           {/* Why: split-group layouts render their own terminal/browser/editor
               surfaces inside TabGroupPanel. Keeping the legacy workspace-level
@@ -829,7 +931,6 @@ function Terminal(): React.JSX.Element | null {
             {allWorktrees
               .filter((wt) => mountedWorktreeIdsRef.current.has(wt.id))
               .map((worktree) => {
-                const worktreeTabs = tabsByWorktree[worktree.id] ?? []
                 const isVisible = activeView !== 'settings' && worktree.id === activeWorktreeId
 
                 return (
@@ -839,7 +940,7 @@ function Terminal(): React.JSX.Element | null {
                     aria-hidden={!isVisible}
                   >
                     <CodexRestartChip worktreeId={worktree.id} />
-                    {worktreeTabs.map((tab) => (
+                    {(tabsByWorktree[worktree.id] ?? []).map((tab) => (
                       <TerminalPane
                         key={`${tab.id}-${tab.generation ?? 0}`}
                         tabId={tab.id}
@@ -848,10 +949,11 @@ function Terminal(): React.JSX.Element | null {
                         isActive={
                           isVisible && tab.id === activeTabId && activeTabType === 'terminal'
                         }
-                        // Why: the legacy single-surface terminal host still expects
-                        // tab visibility to follow active-tab selection. Without this,
-                        // background terminals never get suspendRendering() and PTY
-                        // data bypasses the buffer, wasting CPU on hidden xterm renders.
+                        // Why: the bootstrap fallback still uses the legacy
+                        // workspace-level terminal host, where only the active
+                        // tab should render. Keeping `isVisible` explicit avoids
+                        // multiple panes stacking during the short window before
+                        // the split-group root layout is ready.
                         isVisible={
                           isVisible && tab.id === activeTabId && activeTabType === 'terminal'
                         }
