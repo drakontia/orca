@@ -533,6 +533,22 @@ function Terminal(): React.JSX.Element | null {
         return
       }
 
+      // Cmd/Ctrl+Shift+T — reopen closed browser tab when browser is active,
+      // otherwise reopen the most recently closed editor tab (VS Code–style).
+      if (mod && e.shiftKey && e.key.toLowerCase() === 't' && !e.repeat) {
+        e.preventDefault()
+        const state = useAppStore.getState()
+        if (state.activeTabType === 'browser') {
+          const restored = state.reopenClosedBrowserTab(activeWorktreeId)
+          if (restored === null) {
+            state.reopenClosedEditorTab(activeWorktreeId)
+          }
+        } else {
+          state.reopenClosedEditorTab(activeWorktreeId)
+        }
+        return
+      }
+
       // Cmd/Ctrl+Shift+B - new browser tab
       if (mod && e.shiftKey && e.key.toLowerCase() === 'b' && !e.repeat) {
         e.preventDefault()

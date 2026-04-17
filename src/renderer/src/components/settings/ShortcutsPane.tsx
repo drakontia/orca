@@ -125,6 +125,11 @@ const SHORTCUT_GROUP_DEFINITIONS: ShortcutGroupDefinition[] = [
         keys: ({ mod }) => [mod, 'W']
       },
       {
+        action: 'Reopen closed tab',
+        searchKeywords: ['shortcut', 'tab', 'reopen', 'restore', 'closed'],
+        keys: ({ mod, shift }) => [mod, shift, 'T']
+      },
+      {
         action: 'Next tab',
         searchKeywords: ['shortcut', 'tab', 'next'],
         keys: ({ mod, shift }) => [mod, shift, ']']

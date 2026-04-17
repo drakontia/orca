@@ -15,6 +15,7 @@ import { zoomLevelToPercent, ZOOM_MIN, ZOOM_MAX } from '@/components/settings/Se
 import { dispatchZoomLevelChanged } from '@/lib/zoom-events'
 import { resolveZoomTarget } from './resolve-zoom-target'
 import { handleSwitchTab } from './ipc-tab-switch'
+import { dispatchClearModifierHints } from './useModifierHint'
 
 export { resolveZoomTarget } from './resolve-zoom-target'
 
@@ -44,18 +45,21 @@ export function useIpcEvents(): void {
 
     unsubs.push(
       window.api.ui.onToggleLeftSidebar(() => {
+        dispatchClearModifierHints()
         useAppStore.getState().toggleSidebar()
       })
     )
 
     unsubs.push(
       window.api.ui.onToggleRightSidebar(() => {
+        dispatchClearModifierHints()
         useAppStore.getState().toggleRightSidebar()
       })
     )
 
     unsubs.push(
       window.api.ui.onToggleWorktreePalette(() => {
+        dispatchClearModifierHints()
         const store = useAppStore.getState()
         if (store.activeModal === 'worktree-palette') {
           store.closeModal()
@@ -67,6 +71,7 @@ export function useIpcEvents(): void {
 
     unsubs.push(
       window.api.ui.onOpenQuickOpen(() => {
+        dispatchClearModifierHints()
         const store = useAppStore.getState()
         if (store.activeView === 'terminal' && store.activeWorktreeId !== null) {
           store.openModal('quick-open')
@@ -76,6 +81,7 @@ export function useIpcEvents(): void {
 
     unsubs.push(
       window.api.ui.onJumpToWorktreeIndex((index) => {
+        dispatchClearModifierHints()
         const store = useAppStore.getState()
         if (store.activeView !== 'terminal') {
           return

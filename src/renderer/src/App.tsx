@@ -37,6 +37,7 @@ import { countWorkingAgents, getWorkingAgentsPerWorktree } from './lib/agent-sta
 import { activateAndRevealWorktree } from './lib/worktree-activation'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import { findWorktreeById, getRepoIdFromWorktreeId } from '@/store/slices/worktree-helpers'
+import { dispatchClearModifierHints } from './hooks/useModifierHint'
 
 const isMac = navigator.userAgent.includes('Mac')
 
@@ -415,11 +416,10 @@ function App(): React.JSX.Element {
       // Accept Cmd on macOS, Ctrl on other platforms
       const mod = isMac ? e.metaKey : e.ctrlKey
 
-      // Note: Cmd/Ctrl+P (quick-open) and Cmd/Ctrl+1-9 (jump-to-worktree) are
-      // handled via before-input-event in createMainWindow.ts, which forwards
-      // them as IPC events. The IPC handlers in useIpcEvents.ts apply the same
-      // view-state guards (activeView !== 'settings', etc.). This approach
-      // ensures the shortcuts work even when a browser guest has focus.
+      // Note: some app-level shortcuts are also intercepted via
+      // before-input-event in createMainWindow.ts so they still work when a
+      // browser guest has focus. The renderer keeps matching handlers for
+      // local-focus cases and to preserve the same guards in one place.
 
       if (isEditableTarget(e.target)) {
         return
@@ -430,6 +430,7 @@ function App(): React.JSX.Element {
 
       // Cmd/Ctrl+B — toggle left sidebar
       if (!e.altKey && !e.shiftKey && e.key.toLowerCase() === 'b') {
+        dispatchClearModifierHints()
         e.preventDefault()
         actions.toggleSidebar()
         return
@@ -443,6 +444,7 @@ function App(): React.JSX.Element {
 
       // Cmd/Ctrl+L — toggle right sidebar
       if (!e.altKey && !e.shiftKey && e.key.toLowerCase() === 'l') {
+        dispatchClearModifierHints()
         e.preventDefault()
         actions.toggleRightSidebar()
         return
@@ -453,6 +455,7 @@ function App(): React.JSX.Element {
         if (!repos.some((repo) => isGitRepoKind(repo))) {
           return
         }
+        dispatchClearModifierHints()
         e.preventDefault()
         actions.openNewWorkspacePage()
         return
@@ -460,6 +463,7 @@ function App(): React.JSX.Element {
 
       // Cmd/Ctrl+Shift+E — toggle right sidebar / explorer tab
       if (e.shiftKey && !e.altKey && e.key.toLowerCase() === 'e') {
+        dispatchClearModifierHints()
         e.preventDefault()
         actions.setRightSidebarTab('explorer')
         actions.setRightSidebarOpen(true)
@@ -468,6 +472,7 @@ function App(): React.JSX.Element {
 
       // Cmd/Ctrl+Shift+F — toggle right sidebar / search tab
       if (e.shiftKey && !e.altKey && e.key.toLowerCase() === 'f') {
+        dispatchClearModifierHints()
         e.preventDefault()
         actions.setRightSidebarTab('search')
         actions.setRightSidebarOpen(true)
@@ -483,6 +488,7 @@ function App(): React.JSX.Element {
         if (document.querySelector('[data-terminal-search-root]')) {
           return
         }
+        dispatchClearModifierHints()
         e.preventDefault()
         actions.setRightSidebarTab('source-control')
         actions.setRightSidebarOpen(true)

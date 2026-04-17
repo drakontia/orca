@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react'
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable'
 import { FilePlus, Globe, Plus, TerminalSquare } from 'lucide-react'
 import type {
@@ -185,6 +185,9 @@ function TabBarInner({
 
   // Horizontal wheel scrolling for the tab strip
   const tabStripRef = useRef<HTMLDivElement>(null)
+  const prevStripLenRef = useRef<{ worktreeId: string; len: number } | null>(null)
+  const stickToEndRef = useRef(false)
+
   useEffect(() => {
     const el = tabStripRef.current
     if (!el) {
@@ -199,6 +202,84 @@ function TabBarInner({
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
   }, [])
+
+  useEffect(() => {
+    const el = tabStripRef.current
+    if (!el) {
+      return
+    }
+    const isAtEnd = (): boolean => {
+      const max = Math.max(0, el.scrollWidth - el.clientWidth)
+      return el.scrollLeft >= max - 2
+    }
+    const onScroll = (): void => {
+      // Only keep sticking while the user hasn't intentionally scrolled away.
+      stickToEndRef.current = isAtEnd()
+    }
+    el.addEventListener('scroll', onScroll, { passive: true })
+    // Seed based on initial position.
+    onScroll()
+
+    const ro = new ResizeObserver(() => {
+      // If the user is pinned to the right edge, keep it pinned even as tab
+      // labels (e.g. \"Terminal 5\" → branch name) expand and change scrollWidth.
+      if (!stickToEndRef.current) {
+        return
+      }
+      el.scrollLeft = Math.max(0, el.scrollWidth - el.clientWidth)
+    })
+    ro.observe(el)
+
+    return () => {
+      el.removeEventListener('scroll', onScroll)
+      ro.disconnect()
+    }
+  }, [])
+
+  // Why: new and reopened tabs are appended to the right; without this the strip
+  // keeps its scroll offset and the active tab can sit off-screen until the user
+  // drags the tab bar horizontally.
+  useLayoutEffect(() => {
+    const strip = tabStripRef.current
+    const len = orderedItems.length
+    const prev = prevStripLenRef.current
+    if (!strip) {
+      prevStripLenRef.current = { worktreeId, len }
+      return
+    }
+    if (!prev || prev.worktreeId !== worktreeId) {
+      prevStripLenRef.current = { worktreeId, len }
+      return
+    }
+    // If the user is pinned to the right edge, keep the close button visible
+    // even when tab labels change length (e.g. "Terminal 5" → branch name).
+    // Why: label changes don't necessarily change the strip element's own size,
+    // so ResizeObserver won't fire; this effect runs on rerenders instead.
+    if (stickToEndRef.current) {
+      const scrollToEnd = (): void => {
+        const el = tabStripRef.current
+        if (!el) {
+          return
+        }
+        el.scrollLeft = Math.max(0, el.scrollWidth - el.clientWidth)
+      }
+      scrollToEnd()
+      requestAnimationFrame(scrollToEnd)
+    }
+    if (len > prev.len) {
+      const scrollToEnd = (): void => {
+        const el = tabStripRef.current
+        if (!el) {
+          return
+        }
+        el.scrollLeft = Math.max(0, el.scrollWidth - el.clientWidth)
+        stickToEndRef.current = true
+      }
+      scrollToEnd()
+      requestAnimationFrame(scrollToEnd)
+    }
+    prevStripLenRef.current = { worktreeId, len }
+  }, [orderedItems, worktreeId])
 
   return (
     <div
