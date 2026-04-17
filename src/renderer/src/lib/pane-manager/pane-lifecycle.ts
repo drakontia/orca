@@ -179,6 +179,31 @@ export function openTerminal(pane: ManagedPaneInternal): void {
   // Activate unicode 11
   terminal.unicode.activeVersion = '11'
 
+  // Why: the OS reads the focused textarea's screen rect at compositionstart to
+  // decide where to display the IME candidate window. xterm.js only repositions
+  // the textarea on compositionupdate (via updateCompositionElements), not on
+  // compositionstart, so the window can appear at a stale cursor position. We
+  // force-sync the textarea position in a capture-phase listener so the OS sees
+  // the correct location before it opens the candidate window.
+  if (terminal.element) {
+    terminal.element.addEventListener(
+      'compositionstart',
+      () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const core = (terminal as any)._core
+        const dims: { width: number; height: number } | undefined =
+          core?._renderService?.dimensions?.css?.cell
+        const textarea: HTMLTextAreaElement | undefined = core?.textarea
+        if (!dims || !textarea) return
+        const buf = terminal.buffer.active
+        const x = Math.min(buf.cursorX, terminal.cols - 1)
+        textarea.style.top = `${buf.cursorY * dims.height}px`
+        textarea.style.left = `${x * dims.width}px`
+      },
+      true // capture phase: fires before xterm.js's own listeners
+    )
+  }
+
   if (pane.gpuRenderingEnabled) {
     attachWebgl(pane)
   }
