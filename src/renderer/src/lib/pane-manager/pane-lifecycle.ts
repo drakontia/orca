@@ -129,7 +129,8 @@ export function createPaneDOM(
     serializeAddon,
     unicode11Addon,
     webLinksAddon,
-    webglAddon: null
+    webglAddon: null,
+    compositionHandler: null
   }
 
   // Focus handler: clicking a pane makes it active and explicitly focuses
@@ -186,22 +187,23 @@ export function openTerminal(pane: ManagedPaneInternal): void {
   // force-sync the textarea position in a capture-phase listener so the OS sees
   // the correct location before it opens the candidate window.
   if (terminal.element) {
-    terminal.element.addEventListener(
-      'compositionstart',
-      () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const core = (terminal as any)._core
-        const dims: { width: number; height: number } | undefined =
-          core?._renderService?.dimensions?.css?.cell
-        const textarea: HTMLTextAreaElement | undefined = core?.textarea
-        if (!dims || !textarea) return
-        const buf = terminal.buffer.active
-        const x = Math.min(buf.cursorX, terminal.cols - 1)
-        textarea.style.top = `${buf.cursorY * dims.height}px`
-        textarea.style.left = `${x * dims.width}px`
-      },
-      true // capture phase: fires before xterm.js's own listeners
-    )
+    const handler = () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const core = (terminal as any)._core
+      const dims: { width: number; height: number } | undefined =
+        core?._renderService?.dimensions?.css?.cell
+      const textarea: HTMLTextAreaElement | undefined = core?.textarea
+      if (!dims || !textarea) {
+        return
+      }
+      const buf = terminal.buffer.active
+      const x = Math.min(buf.cursorX, terminal.cols - 1)
+      textarea.style.top = `${buf.cursorY * dims.height}px`
+      textarea.style.left = `${x * dims.width}px`
+    }
+    terminal.element.addEventListener('compositionstart', handler, true)
+    // Store so disposePane() can remove it and avoid a memory leak.
+    pane.compositionHandler = handler
   }
 
   if (pane.gpuRenderingEnabled) {
@@ -265,6 +267,10 @@ export function disposePane(
   pane: ManagedPaneInternal,
   panes: Map<number, ManagedPaneInternal>
 ): void {
+  if (pane.compositionHandler) {
+    pane.terminal.element?.removeEventListener('compositionstart', pane.compositionHandler, true)
+    pane.compositionHandler = null
+  }
   try {
     pane.webglAddon?.dispose()
   } catch {

@@ -56,6 +56,8 @@ export type ManagedPaneInternal = {
   serializeAddon: SerializeAddon
   unicode11Addon: Unicode11Addon
   webLinksAddon: WebLinksAddon
+  // Stored so disposePane() can remove it and avoid a memory leak.
+  compositionHandler: (() => void) | null
 } & ManagedPane
 
 export type DropZone = 'top' | 'bottom' | 'left' | 'right'
