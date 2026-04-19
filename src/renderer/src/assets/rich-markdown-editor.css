@@ -280,6 +280,34 @@
   background: color-mix(in srgb, var(--foreground) 2%, transparent);
 }
 
+.rich-markdown-editor table {
+  width: 100%;
+  margin: 1em 0;
+  border-collapse: collapse;
+  font-size: 0.95em;
+}
+
+.rich-markdown-editor th,
+.rich-markdown-editor td {
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.rich-markdown-editor th {
+  font-weight: 600;
+  background: color-mix(in srgb, var(--foreground) 4%, transparent);
+}
+
+/* Why: Tiptap tables render as <tbody> only with the first <tr> containing
+   <th> cells. Striping odd rows (1, 3, 5) skips the header row — which has
+   no <td> — and starts alternation from the second data row, avoiding a
+   shaded band directly adjacent to the header. */
+.rich-markdown-editor tr:nth-child(odd) td {
+  background: color-mix(in srgb, var(--foreground) 1.5%, transparent);
+}
+
 .rich-markdown-editor code {
   padding: 0.2em 0.4em;
   border-radius: 5px;
