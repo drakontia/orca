@@ -89,6 +89,7 @@ export type BrowserApi = {
   registerGuest: (args: {
     browserPageId: string
     workspaceId: string
+    worktreeId: string
     webContentsId: number
   }) => Promise<void>
   unregisterGuest: (args: { browserPageId: string }) => Promise<void>
@@ -107,6 +108,10 @@ export type BrowserApi = {
   onContextMenuDismissed: (
     callback: (event: BrowserContextMenuDismissedEvent) => void
   ) => () => void
+  onNavigationUpdate: (
+    callback: (event: { browserPageId: string; url: string; title: string }) => void
+  ) => () => void
+  onActivateView: (callback: (data: { worktreeId: string }) => void) => () => void
   onOpenLinkInOrcaTab: (
     callback: (event: { browserPageId: string; url: string }) => void
   ) => () => void
@@ -140,6 +145,7 @@ export type BrowserApi = {
     browserProfile?: string
   }) => Promise<BrowserCookieImportResult>
   sessionClearDefaultCookies: () => Promise<boolean>
+  notifyActiveTabChanged: (args: { browserPageId: string }) => Promise<boolean>
 }
 
 export type DetectedBrowserProfileInfo = {
@@ -604,6 +610,14 @@ export type PreloadApi = {
     onOpenQuickOpen: (callback: () => void) => () => void
     onJumpToWorktreeIndex: (callback: (index: number) => void) => () => void
     onNewBrowserTab: (callback: () => void) => () => void
+    onRequestTabCreate: (
+      callback: (data: { requestId: string; url: string; worktreeId?: string }) => void
+    ) => () => void
+    replyTabCreate: (reply: { requestId: string; browserPageId?: string; error?: string }) => void
+    onRequestTabClose: (
+      callback: (data: { requestId: string; tabId: string | null; worktreeId?: string }) => void
+    ) => () => void
+    replyTabClose: (reply: { requestId: string; error?: string }) => void
     onNewTerminalTab: (callback: () => void) => () => void
     onFocusBrowserAddressBar: (callback: () => void) => () => void
     onFindInBrowserPage: (callback: () => void) => () => void

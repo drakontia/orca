@@ -15,7 +15,7 @@ import { registerStatsHandlers } from './stats'
 import { registerRateLimitHandlers } from './rate-limits'
 import { registerRuntimeHandlers } from './runtime'
 import { registerNotificationHandlers } from './notifications'
-import { setTrustedBrowserRendererWebContentsId } from './browser'
+import { setTrustedBrowserRendererWebContentsId, setAgentBrowserBridgeRef } from './browser'
 import { registerSessionHandlers } from './session'
 import { registerSettingsHandlers } from './settings'
 import { registerBrowserHandlers } from './browser'
@@ -50,6 +50,7 @@ export function registerCoreHandlers(
   // if a channel is registered twice, so we guard to register only once and
   // just update the per-window web-contents ID on subsequent calls.
   setTrustedBrowserRendererWebContentsId(mainWindowWebContentsId)
+  setAgentBrowserBridgeRef(runtime.getAgentBrowserBridge())
   if (registered) {
     return
   }

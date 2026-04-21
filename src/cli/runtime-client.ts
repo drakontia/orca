@@ -58,7 +58,10 @@ export class RuntimeClient {
   private readonly userDataPath: string
   private readonly requestTimeoutMs: number
 
-  constructor(userDataPath = getDefaultUserDataPath(), requestTimeoutMs = 15000) {
+  // Why: browser commands trigger first-time session init (agent-browser connect +
+  // CDP proxy setup) which can take 15-30s. 60s accommodates cold start without
+  // being so large that genuine hangs go unnoticed.
+  constructor(userDataPath = getDefaultUserDataPath(), requestTimeoutMs = 60_000) {
     this.userDataPath = userDataPath
     this.requestTimeoutMs = requestTimeoutMs
   }
@@ -383,6 +386,12 @@ export function getDefaultUserDataPath(
   platform: NodeJS.Platform = process.platform,
   homeDir = homedir()
 ): string {
+  // Why: in dev mode, the Electron app writes runtime metadata to `orca-dev`
+  // instead of `orca` to avoid clobbering the production app's metadata. The
+  // CLI needs to find the same metadata file, so respect this env var override.
+  if (process.env.ORCA_USER_DATA_PATH) {
+    return process.env.ORCA_USER_DATA_PATH
+  }
   if (platform === 'darwin') {
     return join(homeDir, 'Library', 'Application Support', 'orca')
   }

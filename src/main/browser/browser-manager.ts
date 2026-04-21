@@ -38,6 +38,7 @@ export type BrowserGuestRegistration = {
   browserPageId?: string
   browserTabId?: string
   workspaceId?: string
+  worktreeId?: string
   webContentsId: number
   rendererWebContentsId: number
 }
@@ -71,15 +72,20 @@ function safeOrigin(rawUrl: string): string {
   }
 }
 
-class BrowserManager {
+export class BrowserManager {
   private readonly webContentsIdByTabId = new Map<string, number>()
   // Why: reverse map enables O(1) guest→tab lookups instead of O(N) linear
   // scans on every mouse event, load failure, permission, and popup event.
   private readonly tabIdByWebContentsId = new Map<number, string>()
+  // Why: guest registration is keyed by browser page id, but renderer
+  // visibility/focus state is keyed by browser workspace id. Screenshot prep
+  // has to bridge that mismatch to activate the right tab before capture.
+  private readonly workspaceIdByPageId = new Map<string, string>()
   private readonly rendererWebContentsIdByTabId = new Map<string, number>()
   private readonly contextMenuCleanupByTabId = new Map<string, () => void>()
   private readonly grabShortcutCleanupByTabId = new Map<string, () => void>()
   private readonly shortcutForwardingCleanupByTabId = new Map<string, () => void>()
+  private readonly worktreeIdByTabId = new Map<string, string>()
   private readonly policyAttachedGuestIds = new Set<number>()
   private readonly policyCleanupByGuestId = new Map<number, () => void>()
   private readonly pendingLoadFailuresByGuestId = new Map<
@@ -108,12 +114,230 @@ class BrowserManager {
     return renderer
   }
 
+  // Why: screenshot sessions target guest page ids, but Orca's visible browser
+  // chrome is keyed by workspace ids. If we activate the page id directly, the
+  // webview stays hidden under the terminal pane and Page.captureScreenshot
+  // times out even though the guest still exists.
+  async ensureWebviewVisible(guestWebContentsId: number): Promise<() => void> {
+    const browserPageId = this.resolveBrowserTabIdForGuestWebContentsId(guestWebContentsId)
+    if (!browserPageId) {
+      return () => {}
+    }
+    const browserWorkspaceId = this.workspaceIdByPageId.get(browserPageId) ?? browserPageId
+    const worktreeId = this.worktreeIdByTabId.get(browserPageId) ?? null
+    const renderer = this.resolveRendererForBrowserTab(browserPageId)
+    if (!renderer || renderer.isDestroyed()) {
+      return () => {}
+    }
+
+    const prev = await renderer
+      .executeJavaScript(
+        `(function() {
+          var store = window.__store;
+          if (!store) return null;
+          var state = store.getState();
+          var prevTabType = state.activeTabType;
+          var prevActiveWorktreeId = state.activeWorktreeId || null;
+          var prevActiveBrowserWorkspaceId = state.activeBrowserTabId || null;
+          var prevActiveBrowserPageId = null;
+          var prevFocusedGroupTabId = null;
+          var targetWorktreeId = ${JSON.stringify(worktreeId)};
+          var browserWorkspaceId = ${JSON.stringify(browserWorkspaceId)};
+          var browserPageId = ${JSON.stringify(browserPageId)};
+          var browserTabsByWorktree = state.browserTabsByWorktree || {};
+
+          if (prevActiveWorktreeId) {
+            var prevFocusedGroupId = (state.activeGroupIdByWorktree || {})[prevActiveWorktreeId];
+            var prevGroups = (state.groupsByWorktree || {})[prevActiveWorktreeId] || [];
+            for (var pg = 0; pg < prevGroups.length; pg++) {
+              if (prevGroups[pg].id === prevFocusedGroupId) {
+                prevFocusedGroupTabId = prevGroups[pg].activeTabId;
+                break;
+              }
+            }
+          }
+
+          if (prevActiveBrowserWorkspaceId) {
+            for (var prevWtId in browserTabsByWorktree) {
+              var prevBrowserTabs = browserTabsByWorktree[prevWtId] || [];
+              for (var pbt = 0; pbt < prevBrowserTabs.length; pbt++) {
+                if (prevBrowserTabs[pbt].id === prevActiveBrowserWorkspaceId) {
+                  prevActiveBrowserPageId = prevBrowserTabs[pbt].activePageId || null;
+                  break;
+                }
+              }
+              if (prevActiveBrowserPageId) break;
+            }
+          }
+
+          if (
+            targetWorktreeId &&
+            prevActiveWorktreeId !== targetWorktreeId &&
+            typeof state.setActiveWorktree === 'function'
+          ) {
+            state.setActiveWorktree(targetWorktreeId);
+            state = store.getState();
+          }
+
+          var foundWorkspace = null;
+          for (var wtId in browserTabsByWorktree) {
+            var tabs = browserTabsByWorktree[wtId] || [];
+            for (var i = 0; i < tabs.length; i++) {
+              if (tabs[i].id === browserWorkspaceId) {
+                foundWorkspace = tabs[i];
+                if (!targetWorktreeId) {
+                  targetWorktreeId = wtId;
+                }
+                break;
+              }
+            }
+            if (foundWorkspace) break;
+          }
+
+          var hasTargetPage = false;
+          var targetPages = (state.browserPagesByWorkspace || {})[browserWorkspaceId] || [];
+          for (var pageIndex = 0; pageIndex < targetPages.length; pageIndex++) {
+            if (targetPages[pageIndex].id === browserPageId) {
+              hasTargetPage = true;
+              break;
+            }
+          }
+
+          if (foundWorkspace) {
+            if (typeof state.setActiveBrowserTab === 'function') {
+              state.setActiveBrowserTab(browserWorkspaceId);
+              state = store.getState();
+            } else {
+              var allTabs = state.unifiedTabsByWorktree || {};
+              var found = null;
+              for (var unifiedWtId in allTabs) {
+                var unifiedTabs = allTabs[unifiedWtId] || [];
+                for (var unifiedIndex = 0; unifiedIndex < unifiedTabs.length; unifiedIndex++) {
+                  if (
+                    unifiedTabs[unifiedIndex].contentType === 'browser' &&
+                    unifiedTabs[unifiedIndex].entityId === browserWorkspaceId
+                  ) {
+                    found = unifiedTabs[unifiedIndex];
+                    break;
+                  }
+                }
+                if (found) break;
+              }
+              if (found) {
+                state.activateTab(found.id);
+              }
+              state.setActiveTabType('browser');
+              state = store.getState();
+            }
+            // Why: activating the workspace alone is not enough for screenshot
+            // capture when a browser workspace contains multiple pages. The
+            // compositor only paints the currently mounted page guest.
+            if (
+              hasTargetPage &&
+              foundWorkspace.activePageId !== browserPageId &&
+              typeof state.setActiveBrowserPage === 'function'
+            ) {
+              state.setActiveBrowserPage(browserWorkspaceId, browserPageId);
+              state = store.getState();
+            }
+          }
+
+          return {
+            prevTabType: prevTabType,
+            prevActiveWorktreeId: prevActiveWorktreeId,
+            prevActiveBrowserWorkspaceId: prevActiveBrowserWorkspaceId,
+            prevActiveBrowserPageId: prevActiveBrowserPageId,
+            prevFocusedGroupTabId: prevFocusedGroupTabId,
+            targetWorktreeId: targetWorktreeId,
+            targetBrowserWorkspaceId: foundWorkspace ? browserWorkspaceId : null,
+            targetBrowserPageId: foundWorkspace && hasTargetPage ? browserPageId : null
+          };
+        })()`
+      )
+      .catch(() => null)
+
+    const needsRestore =
+      prev &&
+      (prev.prevTabType !== 'browser' ||
+        prev.prevActiveWorktreeId !== prev.targetWorktreeId ||
+        prev.prevFocusedGroupTabId !== null ||
+        prev.prevActiveBrowserWorkspaceId !== prev.targetBrowserWorkspaceId ||
+        prev.prevActiveBrowserPageId !== prev.targetBrowserPageId)
+
+    if (!needsRestore) {
+      return () => {}
+    }
+
+    return () => {
+      if (!prev || !renderer || renderer.isDestroyed()) {
+        return
+      }
+      renderer
+        .executeJavaScript(
+          `(function() {
+            var store = window.__store;
+            if (!store) return;
+            var state = store.getState();
+            if (
+              ${JSON.stringify(prev?.prevActiveWorktreeId)} &&
+              ${JSON.stringify(prev?.prevActiveWorktreeId)} !==
+                ${JSON.stringify(prev?.targetWorktreeId)} &&
+              typeof state.setActiveWorktree === 'function'
+            ) {
+              state.setActiveWorktree(${JSON.stringify(prev?.prevActiveWorktreeId)});
+              state = store.getState();
+            }
+            if (
+              ${JSON.stringify(prev?.prevActiveBrowserWorkspaceId)} &&
+              ${JSON.stringify(prev?.prevActiveBrowserWorkspaceId)} !==
+                ${JSON.stringify(prev?.targetBrowserWorkspaceId)} &&
+              typeof state.setActiveBrowserTab === 'function'
+            ) {
+              state.setActiveBrowserTab(${JSON.stringify(prev?.prevActiveBrowserWorkspaceId)});
+              state = store.getState();
+            }
+            if (
+              ${JSON.stringify(prev?.prevActiveBrowserWorkspaceId)} &&
+              ${JSON.stringify(prev?.prevActiveBrowserPageId)} &&
+              ${JSON.stringify(prev?.prevActiveBrowserPageId)} !==
+                ${JSON.stringify(prev?.targetBrowserPageId)} &&
+              typeof state.setActiveBrowserPage === 'function'
+            ) {
+              // Why: Orca remembers the last browser workspace/page even when
+              // the user is currently in terminal/editor view. Screenshot prep
+              // temporarily switches that hidden browser selection state, so
+              // restore it independently of the visible tab type.
+              state.setActiveBrowserPage(
+                ${JSON.stringify(prev?.prevActiveBrowserWorkspaceId)},
+                ${JSON.stringify(prev?.prevActiveBrowserPageId)}
+              );
+              state = store.getState();
+            }
+            if (
+              ${JSON.stringify(prev?.prevTabType)} !== 'browser' &&
+              ${JSON.stringify(prev?.prevFocusedGroupTabId)}
+            ) {
+              state.activateTab(${JSON.stringify(prev?.prevFocusedGroupTabId)});
+            }
+            if (${JSON.stringify(prev?.prevTabType)} !== 'browser') {
+              state.setActiveTabType(${JSON.stringify(prev?.prevTabType)});
+            }
+          })()`
+        )
+        .catch(() => {})
+    }
+  }
+
   attachGuestPolicies(guest: Electron.WebContents): void {
     if (this.policyAttachedGuestIds.has(guest.id)) {
       return
     }
     this.policyAttachedGuestIds.add(guest.id)
-    guest.setBackgroundThrottling(true)
+    // Why: background throttling must be disabled so agent-driven screenshots
+    // (Page.captureScreenshot via CDP proxy) can capture frames even when the
+    // Orca window is not the focused foreground app. With throttling enabled,
+    // the compositor stops producing frames and capturePage() returns empty.
+    guest.setBackgroundThrottling(false)
     guest.setWindowOpenHandler(({ url }) => {
       const browserTabId = this.resolveBrowserTabIdForGuestWebContentsId(guest.id)
       const browserUrl = normalizeBrowserNavigationUrl(url)
@@ -189,9 +413,30 @@ class BrowserManager {
     })
   }
 
+  private retireStaleGuestWebContents(previousWebContentsId: number): void {
+    // Why: a browser page can re-register with a new guest id after Chromium
+    // swaps renderer processes. Late events from the dead guest must stop
+    // resolving to the live page, or stale download/popup/permission callbacks
+    // can be delivered to the wrong session after the swap.
+    this.tabIdByWebContentsId.delete(previousWebContentsId)
+
+    const policyCleanup = this.policyCleanupByGuestId.get(previousWebContentsId)
+    if (policyCleanup) {
+      policyCleanup()
+      this.policyCleanupByGuestId.delete(previousWebContentsId)
+    }
+    this.policyAttachedGuestIds.delete(previousWebContentsId)
+    this.pendingLoadFailuresByGuestId.delete(previousWebContentsId)
+    this.pendingPermissionEventsByGuestId.delete(previousWebContentsId)
+    this.pendingPopupEventsByGuestId.delete(previousWebContentsId)
+    this.pendingDownloadIdsByGuestId.delete(previousWebContentsId)
+  }
+
   registerGuest({
     browserPageId,
     browserTabId: legacyBrowserTabId,
+    workspaceId,
+    worktreeId,
     webContentsId,
     rendererWebContentsId
   }: BrowserGuestRegistration): void {
@@ -231,9 +476,20 @@ class BrowserManager {
       return
     }
 
+    const previousWebContentsId = this.webContentsIdByTabId.get(browserTabId)
+    if (previousWebContentsId !== undefined && previousWebContentsId !== webContentsId) {
+      this.retireStaleGuestWebContents(previousWebContentsId)
+    }
+
     this.webContentsIdByTabId.set(browserTabId, webContentsId)
     this.tabIdByWebContentsId.set(webContentsId, browserTabId)
+    if (workspaceId) {
+      this.workspaceIdByPageId.set(browserTabId, workspaceId)
+    }
     this.rendererWebContentsIdByTabId.set(browserTabId, rendererWebContentsId)
+    if (worktreeId) {
+      this.worktreeIdByTabId.set(browserTabId, worktreeId)
+    }
 
     this.setupContextMenu(browserTabId, guest)
     this.setupGrabShortcut(browserTabId, guest)
@@ -292,6 +548,8 @@ class BrowserManager {
     }
     this.webContentsIdByTabId.delete(browserTabId)
     this.rendererWebContentsIdByTabId.delete(browserTabId)
+    this.workspaceIdByPageId.delete(browserTabId)
+    this.worktreeIdByTabId.delete(browserTabId)
   }
 
   unregisterAll(): void {
@@ -313,6 +571,7 @@ class BrowserManager {
     }
     this.policyCleanupByGuestId.clear()
     this.tabIdByWebContentsId.clear()
+    this.worktreeIdByTabId.clear()
     this.pendingLoadFailuresByGuestId.clear()
     this.pendingPermissionEventsByGuestId.clear()
     this.pendingPopupEventsByGuestId.clear()
@@ -321,6 +580,14 @@ class BrowserManager {
 
   getGuestWebContentsId(browserTabId: string): number | null {
     return this.webContentsIdByTabId.get(browserTabId) ?? null
+  }
+
+  getWebContentsIdByTabId(): Map<string, number> {
+    return this.webContentsIdByTabId
+  }
+
+  getWorktreeIdForTab(browserTabId: string): string | undefined {
+    return this.worktreeIdByTabId.get(browserTabId)
   }
 
   notifyPermissionDenied(args: {
